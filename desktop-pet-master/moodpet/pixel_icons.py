@@ -8,7 +8,8 @@ from PyQt5.QtWidgets import QLabel, QPushButton
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
-ICON_ASSETS_DIR = BASE_DIR / "assets" / "icons" / "pixelarticons"
+ICON_ASSET_ROOT = BASE_DIR / "assets" / "icons"
+ICON_ASSETS_DIR = ICON_ASSET_ROOT / "pixelarticons"
 DEFAULT_ICON_COLOR = "#071927"
 
 MOODPET_ICONS: Dict[str, str] = {
@@ -31,9 +32,19 @@ MOODPET_ICONS: Dict[str, str] = {
     "story_clue": "pixelarticons:book",
     "story_choice": "pixelarticons:message-text",
     "companion": "pixelarticons:heart",
+    "heart": "pixelarticons:heart",
     "note": "pixelarticons:note",
     "list": "pixelarticons:list",
     "alert": "pixelarticons:bell",
+    "story_stamp": "pixelarticons:stamp",
+    "story_clock": "pixelarticons:clock-slow",
+    "calendar": "pixelarticons:calendar",
+    "sidebar_default": "moodpet:cat-face",
+    "sidebar_realtime": "moodpet:realtime-scan",
+    "sidebar_todo": "moodpet:todo-clipboard",
+    "sidebar_games": "moodpet:gamepad",
+    "sidebar_settings": "moodpet:gear",
+    "sidebar_paw": "moodpet:paw",
 }
 
 
@@ -46,8 +57,8 @@ def pixel_icon_name(feature: str) -> str:
 
 def icon_asset_path(feature: str) -> Path:
     icon_name = pixel_icon_name(feature)
-    icon_id = icon_name.split(":", 1)[1]
-    return ICON_ASSETS_DIR / f"{icon_id}.svg"
+    namespace, icon_id = icon_name.split(":", 1)
+    return ICON_ASSET_ROOT / namespace / f"{icon_id}.svg"
 
 
 def qicon(feature: str, color: str = DEFAULT_ICON_COLOR, size: int = 24) -> QIcon:

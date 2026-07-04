@@ -1,4 +1,4 @@
-from pathlib import Path
+﻿from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from PyQt5.QtCore import QPointF, QRectF, QSize, Qt, QTimer
@@ -11,7 +11,7 @@ except Exception:  # pragma: no cover - OpenCV availability is environment depen
     cv2 = None
 
 from moodpet.emotion import EmotionState
-from moodpet.pixel_icons import apply_button_icon
+from moodpet.pixel_icons import apply_button_icon, apply_label_icon
 from moodpet.realtime_monitor import (
     build_monitor_rows,
     build_trend_points,
@@ -46,6 +46,7 @@ class PixelButton(QPushButton):
     def __init__(self, text: str, parent: QWidget, color: str = MINT) -> None:
         super().__init__(text, parent)
         self.setCursor(Qt.PointingHandCursor)
+        hover_color = QColor(color).lighter(112).name()
         self.setStyleSheet(
             "QPushButton {"
             f"background-color: {color};"
@@ -57,9 +58,24 @@ class PixelButton(QPushButton):
             "font-weight: 900;"
             "padding: 6px 10px;"
             "}"
-            "QPushButton:hover { background-color: #22d9b4; }"
+            f"QPushButton:hover {{ background-color: {hover_color}; }}"
             "QPushButton:pressed { padding-top: 10px; padding-left: 16px; }"
         )
+
+
+class SidebarNavLabel(QLabel):
+    def __init__(self, text: str, parent: QWidget, on_click: Callable[[str], None], module_id: str) -> None:
+        super().__init__(text, parent)
+        self._on_click = on_click
+        self._module_id = module_id
+        self.setCursor(Qt.PointingHandCursor)
+
+    def mousePressEvent(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            self._on_click(self._module_id)
+            event.accept()
+            return
+        super().mousePressEvent(event)
 
 
 class CameraPreview(QWidget):
@@ -222,6 +238,7 @@ class RealtimeMonitorWindow(QWidget):
         get_state: Callable[[], EmotionState],
         is_enabled: Callable[[], bool],
         toggle_recognition: Callable[[], None],
+        open_target: Optional[Callable[[str], None]] = None,
         parent: Optional[QWidget] = None,
     ) -> None:
         super().__init__(parent)
@@ -229,6 +246,7 @@ class RealtimeMonitorWindow(QWidget):
         self.get_state = get_state
         self.is_enabled = is_enabled
         self.toggle_recognition = toggle_recognition
+        self.open_target = open_target or (lambda module_id: None)
         self.row_labels: List[QLabel] = []
         self.row_frames: List[QFrame] = []
         self.setWindowTitle("MoodPet 实时检测")
@@ -241,40 +259,126 @@ class RealtimeMonitorWindow(QWidget):
         self.sidebar = QFrame(self)
         self.sidebar.setGeometry(12, 12, 260, 736)
         self.sidebar.setStyleSheet(
-            f"QFrame {{ background-color: {NAVY}; border: 3px solid #2fe6bd; border-radius: 8px; }}"
+            f"QFrame {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #083842, stop:1 {NAVY}); border: 3px solid #2fe6bd; border-radius: 8px; }}"
         )
 
-        brand = QLabel("♣ MoodPet 🐾", self.sidebar)
-        brand.setGeometry(24, 18, 210, 44)
-        brand.setStyleSheet("color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 23pt; font-weight: 900;")
+        brand_shell = QFrame(self.sidebar)
+        brand_shell.setGeometry(14, 14, 232, 164)
+        brand_shell.setStyleSheet(
+            "QFrame {"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0b3943, stop:0.45 #092d38, stop:1 #071d28);"
+            "border: 3px solid #23e1ca;"
+            "border-right: 5px solid #041821;"
+            "border-bottom: 5px solid #041821;"
+            "border-radius: 14px;"
+            "}"
+        )
+
+        brand_title = QFrame(self.sidebar)
+        brand_title.setGeometry(22, 18, 212, 34)
+        brand_title.setStyleSheet("background: transparent; border: none;")
+
+        brand_badge = QFrame(brand_title)
+        brand_badge.setGeometry(0, 4, 26, 26)
+        brand_badge.setStyleSheet(
+            "background-color: #083642;"
+            "border: 2px solid #23e1ca;"
+            "border-radius: 5px;"
+        )
+        brand_badge_icon = QLabel("", brand_badge)
+        brand_badge_icon.setGeometry(1, 1, 24, 24)
+        brand_badge_icon.setAlignment(Qt.AlignCenter)
+        brand_badge_icon.setStyleSheet("background: transparent; border: none;")
+        apply_label_icon(brand_badge_icon, "sidebar_default", 24, "#f7fffd")
+
+        brand = QLabel("MoodPet", brand_title)
+        brand.setGeometry(34, 0, 132, 34)
+        brand.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        brand.setStyleSheet("color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 21pt; font-weight: 900;")
+
+        brand_paw = QLabel("", brand_title)
+        brand_paw.setGeometry(170, 4, 26, 26)
+        brand_paw.setAlignment(Qt.AlignCenter)
+        brand_paw.setStyleSheet("background: transparent; border: none;")
+        apply_label_icon(brand_paw, "sidebar_paw", 24, "#ffcf6a")
 
         pet = QLabel(self.sidebar)
-        pet.setGeometry(34, 84, 84, 84)
+        pet.setGeometry(22, 60, 60, 60)
+        pet.setAlignment(Qt.AlignCenter)
+        pet.setStyleSheet(
+            "background-color: #0c3340;"
+            "border: 3px solid #22ddc8;"
+            "border-right: 5px solid #031821;"
+            "border-bottom: 5px solid #031821;"
+            "border-radius: 10px;"
+        )
         movie = QMovie(str(self.base_dir / "pet" / "init" / "stay.gif"))
-        movie.setScaledSize(QSize(82, 82))
+        movie.setScaledSize(QSize(56, 56))
         pet.setMovie(movie)
         movie.start()
         self.pet_movie = movie
 
         companion = QLabel("Mood伴侣\n● 在线", self.sidebar)
-        companion.setGeometry(122, 92, 112, 70)
-        companion.setStyleSheet("color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 15pt; font-weight: 700;")
+        companion.setGeometry(92, 62, 136, 56)
+        companion.setWordWrap(True)
+        companion.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        companion.setStyleSheet("color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 14pt; font-weight: 700;")
 
         dash = QLabel("", self.sidebar)
-        dash.setGeometry(22, 186, 216, 2)
-        dash.setStyleSheet("background-color: #2fe6bd; border: none;")
+        dash.setGeometry(22, 146, 216, 2)
+        dash.setStyleSheet("background-color: rgba(47, 230, 189, 220); border: none;")
 
-        items = [("☷", "桌宠默认态"), ("▧", "实时检测"), ("☑", "待办"), ("✦", "小游戏"), ("⚙", "设置")]
-        for index, (icon, text) in enumerate(items):
-            item = QLabel(f"{icon}   {text}", self.sidebar)
-            item.setGeometry(24, 216 + index * 62, 214, 46)
+        self.sidebar_items = []
+        items = [
+            ("sidebar_default", "桌宠默认态", None),
+            ("sidebar_realtime", "实时检测", "realtime"),
+            ("sidebar_todo", "待办", "todo"),
+            ("sidebar_games", "小游戏", "games"),
+            ("sidebar_settings", "设置", "settings"),
+        ]
+        for index, (icon, text, module_id) in enumerate(items):
+            item = QFrame(self.sidebar)
+            item.setGeometry(24, 220 + index * 62, 214, 46)
             if text == "实时检测":
                 item.setStyleSheet(
-                    "background-color: #20b987; color: white; border: 2px dashed #a8ffce;"
-                    "border-radius: 8px; font-family: 'Microsoft YaHei'; font-size: 14pt; font-weight: 900; padding-left: 14px;"
+                    "QFrame {"
+                    "background-color: #20b987;"
+                    "border: 2px dashed #a8ffce;"
+                    "border-radius: 8px;"
+                    "}"
                 )
             else:
-                item.setStyleSheet("color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 14pt; font-weight: 800; padding-left: 14px;")
+                item.setStyleSheet(
+                    "QFrame {"
+                    "background-color: rgba(11, 58, 70, 160);"
+                    "border: none;"
+                    "border-radius: 8px;"
+                    "}"
+                )
+
+            icon_label = QLabel("", item)
+            icon_label.setGeometry(12, 11, 24, 24)
+            icon_label.setAlignment(Qt.AlignCenter)
+            icon_label.setStyleSheet("background: transparent; border: none;")
+            apply_label_icon(icon_label, icon, 24, "#f7fffd")
+
+            text_label = SidebarNavLabel(text, item, self.open_target, module_id) if module_id is not None else QLabel(text, item)
+            text_label.setGeometry(46, 0, 150, 46)
+            text_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            text_label.setStyleSheet(
+                "color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 14pt; font-weight: 800;"
+                + ("padding-left: 0px;" if module_id is not None else "")
+            )
+
+            if module_id is not None:
+                item.setCursor(Qt.PointingHandCursor)
+                icon_label.setCursor(Qt.PointingHandCursor)
+                text_label.setCursor(Qt.PointingHandCursor)
+                item.mousePressEvent = lambda event, selected_module_id=module_id: self._open_sidebar_target(event, selected_module_id)
+                icon_label.mousePressEvent = lambda event, selected_module_id=module_id: self._open_sidebar_target(event, selected_module_id)
+                text_label.mousePressEvent = lambda event, selected_module_id=module_id: self._open_sidebar_target(event, selected_module_id)
+
+            self.sidebar_items.append((item, icon_label, text_label))
 
         bubble = QLabel("我在看着你哦~", self.sidebar)
         bubble.setGeometry(122, 546, 106, 40)
@@ -360,14 +464,29 @@ class RealtimeMonitorWindow(QWidget):
         label(chart_panel, "情绪趋势（今日）", (20, 8, 250, 34), 15, 900)
         self.chart = TrendChart(chart_panel)
         self.chart.setGeometry(12, 48, 386, 150)
-
         tip = QFrame(self)
-        tip.setGeometry(302, 632, 642, 86)
+        tip.setGeometry(302, 632, 642, 94)
         tip.setStyleSheet(f"background-color: {PANEL}; border: 2px solid #d5b58c; border-radius: 7px;")
-        tip_title = label(tip, "💡 提示：此页面为实时可见预览，方便观察当前情绪状态。", (22, 10, 596, 28), 10, 900)
-        tip_title.setWordWrap(True)
-        tip_body = label(tip, "关闭面板后，后台静默检测仍可继续运行，不影响数据记录与分析。", (78, 42, 520, 32), 10, 900)
-        tip_body.setWordWrap(True)
+        tip_icon = QLabel("💡", tip)
+        tip_icon.setGeometry(22, 13, 18, 18)
+        tip_icon.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        tip_icon.setStyleSheet(
+            f"color: {INK}; border: none; font-family: 'Microsoft YaHei'; font-size: 12pt; font-weight: 900;"
+        )
+
+        tip_line1 = QLabel("提示：此页面为实时可见预览，方便观察当前情绪状态；", tip)
+        tip_line1.setGeometry(42, 10, 580, 24)
+        tip_line1.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        tip_line1.setStyleSheet(
+            f"color: {INK}; border: none; font-family: 'Microsoft YaHei'; font-size: 10pt; font-weight: 900;"
+        )
+
+        tip_line2 = QLabel("即使关闭此页面，后台静默检测仍将持续运行，不会影响数据记录与分析。", tip)
+        tip_line2.setGeometry(42, 41, 584, 24)
+        tip_line2.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        tip_line2.setStyleSheet(
+            f"color: {INK}; border: none; font-family: 'Microsoft YaHei'; font-size: 10pt; font-weight: 900;"
+        )
 
         pet_note = QLabel("我会默默陪伴你，\n记录每一种情绪！", self)
         pet_note.setGeometry(966, 620, 204, 82)
@@ -384,6 +503,11 @@ class RealtimeMonitorWindow(QWidget):
         mascot.setMovie(mascot_movie)
         mascot_movie.start()
         self.mascot_movie = mascot_movie
+
+    def _open_sidebar_target(self, event, module_id: str) -> None:
+        if event.button() == Qt.LeftButton:
+            self.open_target(module_id)
+            event.accept()
 
     def _ensure_open(self) -> None:
         if not self.is_enabled():
@@ -411,3 +535,4 @@ class RealtimeMonitorWindow(QWidget):
         elif not enabled and self.preview.active:
             self.preview.stop_preview()
         self.chart.set_points(build_trend_points(state, enabled))
+

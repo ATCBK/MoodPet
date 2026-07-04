@@ -84,25 +84,31 @@ class DemoWin(QMainWindow):
             "font: 11pt 'Microsoft YaHei';"
             "font-weight: 700;"
             "color: #65ffd8;"
-            "background-color: #102943;"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #174160, stop:1 #102943);"
             "border: 3px solid #071927;"
+            "border-right: 6px solid #071927;"
+            "border-bottom: 6px solid #071927;"
             "border-radius: 10px;"
             "padding: 6px 14px;"
             "}"
         )
 
         self.bubble = QLabel("", self)
-        self.bubble.setGeometry(26, 76, 344, 82)
+        self.bubble.setGeometry(26, 74, 344, 86)
         self.bubble.setWordWrap(True)
         self.bubble.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self.bubble.setCursor(Qt.PointingHandCursor)
+        self.bubble.setToolTip("点击气泡可直接跳转到推荐功能")
         self.bubble.setStyleSheet(
             "QLabel {"
             "font: 12pt 'Microsoft YaHei';"
             "font-weight: 700;"
             "color: #111318;"
-            "background-color: rgba(255, 250, 244, 235);"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef8, stop:0.35 #fff2e6, stop:1 #ffe3d2);"
             "border: 3px solid #d45b5b;"
-            "border-radius: 8px;"
+            "border-right: 6px solid #9c3a3a;"
+            "border-bottom: 6px solid #9c3a3a;"
+            "border-radius: 10px;"
             "padding: 10px 14px;"
             "}"
         )
@@ -120,8 +126,10 @@ class DemoWin(QMainWindow):
             "font: 9pt 'Microsoft YaHei';"
             "font-weight: 700;"
             "color: #65ffd8;"
-            "background-color: rgba(16, 41, 67, 235);"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #17334f, stop:1 #0d2538);"
             "border: 2px dashed #65ffd8;"
+            "border-right: 5px solid #0b1a28;"
+            "border-bottom: 5px solid #0b1a28;"
             "border-radius: 8px;"
             "padding: 6px;"
             "}"
@@ -292,9 +300,9 @@ class DemoWin(QMainWindow):
         self.navigation_hero_movie = hero_movie
 
         prompt = QLabel("选择你想使用的功能", self.navigation_panel)
-        prompt.setGeometry(88, 188, 220, 30)
+        prompt.setGeometry(78, 184, 232, 40)
         prompt.setAlignment(Qt.AlignCenter)
-        prompt.setStyleSheet("font: 15pt 'Microsoft YaHei'; font-weight: 900; color: #111318;")
+        prompt.setStyleSheet("font: 14pt 'Microsoft YaHei'; font-weight: 900; color: #111318;")
 
         modules = build_feature_modules(self.load_menu_config(), self.emotion_enabled)
         positions = [(28, 226), (204, 226), (28, 334), (204, 334)]
@@ -321,6 +329,62 @@ class DemoWin(QMainWindow):
         signal.setGeometry(310, 7, 58, 28)
         signal.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         signal.setStyleSheet("font: 15pt 'Microsoft YaHei'; font-weight: 900; color: #91f18b;")
+
+    def _build_navigation_brand(self):
+        brand = QFrame(self.navigation_panel)
+        brand.setGeometry(18, 72, 170, 102)
+        brand.setStyleSheet(
+            "QFrame {"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0f3a47, stop:0.52 #0b2a36, stop:1 #08222b);"
+            "border: 3px solid #19d0be;"
+            "border-right: 5px solid #061721;"
+            "border-bottom: 5px solid #061721;"
+            "border-radius: 14px;"
+            "}"
+        )
+
+        avatar_shell = QFrame(brand)
+        avatar_shell.setGeometry(10, 10, 50, 50)
+        avatar_shell.setStyleSheet(
+            "QFrame {"
+            "background-color: #0d3440;"
+            "border: 2px solid #79f1d7;"
+            "border-right: 4px solid #042029;"
+            "border-bottom: 4px solid #042029;"
+            "border-radius: 12px;"
+            "}"
+        )
+
+        avatar = QLabel(avatar_shell)
+        avatar.setGeometry(4, 4, 42, 42)
+        avatar.setAlignment(Qt.AlignCenter)
+        avatar.setStyleSheet("background: transparent; border: none;")
+        brand_movie = QMovie(str(BASE_DIR / "pet" / "init" / "stay.gif"))
+        brand_movie.setScaledSize(QSize(42, 42))
+        avatar.setMovie(brand_movie)
+        brand_movie.start()
+        self.navigation_brand_movie = brand_movie
+
+        name = QLabel("MoodPet", brand)
+        name.setGeometry(68, 12, 84, 24)
+        name.setStyleSheet("color: #f4f7f7; border: none; font: 900 19pt 'Microsoft YaHei';")
+
+        category = QLabel("Mood伴侣  ▾", brand)
+        category.setGeometry(68, 36, 96, 18)
+        category.setStyleSheet("color: #d8efea; border: none; font: 700 10pt 'Microsoft YaHei';")
+
+        status = QLabel("● 在线", brand)
+        status.setGeometry(68, 58, 64, 18)
+        status.setStyleSheet("color: #5df09c; border: none; font: 700 10pt 'Microsoft YaHei';")
+
+        paw = QLabel("🐾", brand)
+        paw.setGeometry(132, 6, 28, 28)
+        paw.setAlignment(Qt.AlignCenter)
+        paw.setStyleSheet("color: #ffd88f; border: none; font: 900 18pt 'Microsoft YaHei';")
+
+        accent = QLabel("", brand)
+        accent.setGeometry(14, 70, 138, 1)
+        accent.setStyleSheet("background-color: rgba(125, 241, 215, 120); border: none;")
 
     def _create_module_button(self, module, x, y):
         colors = {
@@ -482,6 +546,7 @@ class DemoWin(QMainWindow):
                 get_state=lambda: self.current_emotion_state,
                 is_enabled=lambda: self.emotion_enabled,
                 toggle_recognition=self.toggle_emotion_recognition,
+                open_target=self.open_feature_module,
                 parent=None,
             )
         self.realtime_monitor.refresh()

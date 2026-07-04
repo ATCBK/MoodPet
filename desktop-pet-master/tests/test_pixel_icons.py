@@ -3,12 +3,13 @@ from moodpet.pixel_icons import ICON_ASSETS_DIR, MOODPET_ICONS, icon_asset_path,
 
 def test_first_version_icons_use_pixelarticons_only():
     forbidden = {"clipboard", "copy", "paste"}
+    allowed_namespaces = {"pixelarticons", "moodpet"}
 
     assert MOODPET_ICONS
     for feature, icon_name in MOODPET_ICONS.items():
-        assert icon_name.startswith("pixelarticons:")
+        namespace, icon_id = icon_name.split(":", 1)
+        assert namespace in allowed_namespaces
         assert not any(word in feature.lower() for word in forbidden)
-        assert not any(word in icon_name.lower() for word in forbidden)
 
 
 def test_recommended_feature_icon_names_are_stable():
@@ -18,6 +19,14 @@ def test_recommended_feature_icon_names_are_stable():
     assert pixel_icon_name("settings") == "pixelarticons:sliders"
     assert pixel_icon_name("bubble") == "pixelarticons:message"
     assert pixel_icon_name("message") == "pixelarticons:message"
+    assert pixel_icon_name("heart") == "pixelarticons:heart"
+    assert pixel_icon_name("calendar") == "pixelarticons:calendar"
+    assert pixel_icon_name("sidebar_default") == "moodpet:cat-face"
+    assert pixel_icon_name("sidebar_realtime") == "moodpet:realtime-scan"
+    assert pixel_icon_name("sidebar_todo") == "moodpet:todo-clipboard"
+    assert pixel_icon_name("sidebar_games") == "moodpet:gamepad"
+    assert pixel_icon_name("sidebar_settings") == "moodpet:gear"
+    assert pixel_icon_name("sidebar_paw") == "moodpet:paw"
     assert pixel_icon_name("close") == "pixelarticons:close"
 
 

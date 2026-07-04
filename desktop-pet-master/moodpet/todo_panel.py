@@ -2,9 +2,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from PyQt5.QtCore import QSize, Qt
-from PyQt5.QtGui import QMovie
-from PyQt5.QtWidgets import QFrame, QLabel, QLineEdit, QPushButton, QWidget
+from PyQt5.QtCore import QPoint, QSize, Qt
+from PyQt5.QtGui import QIcon, QMovie
+from PyQt5.QtWidgets import QFrame, QLabel, QLineEdit, QPushButton, QScrollArea, QWidget
 
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
 from moodpet.todo_state import (
@@ -52,24 +52,26 @@ class PixelButton(QPushButton):
         self.setStyleSheet(
             "QPushButton {"
             f"background-color: {color};"
+            "background-image: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 rgba(255,255,255,0.55), stop:0.55 rgba(255,255,255,0.08), stop:1 rgba(0,0,0,0.03));"
             f"color: {text_color};"
             "border: 2px solid #b99169;"
             "border-right: 4px solid #7d6046;"
             "border-bottom: 4px solid #7d6046;"
-            "border-radius: 5px;"
+            "border-radius: 7px;"
             "font-family: 'Microsoft YaHei';"
-            "font-size: 12pt;"
+            "font-size: 11pt;"
             "font-weight: 900;"
-            "padding: 7px 12px;"
+            "padding: 6px 11px;"
+            "min-height: 34px;"
             "}"
             "QPushButton:hover { background-color: #fffaf2; }"
-            "QPushButton:pressed { padding-left: 14px; padding-top: 9px; }"
+            "QPushButton:pressed { padding-left: 10px; padding-top: 8px; }"
         )
 
 
 def pixel_shadow(parent: QWidget, x: int, y: int, w: int, h: int, radius: int = 8, color: str = "#c49b73") -> QFrame:
     shadow = QFrame(parent)
-    shadow.setGeometry(x + 5, y + 5, w, h)
+    shadow.setGeometry(x + 7, y + 7, w, h)
     shadow.setStyleSheet(f"background-color: {color}; border: none; border-radius: {radius}px;")
     shadow.lower()
     return shadow
@@ -79,12 +81,15 @@ class TodoPanelWindow(QWidget):
     def __init__(self, base_dir: Path, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self.base_dir = base_dir
+        self._chrome_dragging = False
+        self._chrome_drag_pos = QPoint()
         self.todos: List[TodoItem] = list(DEFAULT_TODOS)
         self.active_tab = "today"
         self.sort_mode = "time"
         self.row_frames: List[QFrame] = []
         self.setWindowTitle("MoodPet 待办")
         self.setFixedSize(1360, 760)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setStyleSheet(f"background-color: {CREAM};")
         self._build_ui()
         self.refresh()
@@ -96,30 +101,77 @@ class TodoPanelWindow(QWidget):
 
     def _build_chrome(self) -> None:
         top = QFrame(self)
+        self.top = top
+        top.setCursor(Qt.OpenHandCursor)
+        top.mousePressEvent = self._chrome_mouse_press
+        top.mouseMoveEvent = self._chrome_mouse_move
+        top.mouseReleaseEvent = self._chrome_mouse_release
         top.setGeometry(4, 4, 1352, 52)
         top.setStyleSheet(
-            f"background-color: #51d1bd; border: 3px solid {NAVY}; border-bottom-width: 4px; border-radius: 4px;"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #7be7d7, stop:0.48 #47ceb7, stop:1 #2fae9c);"
+            f"border: 3px solid {NAVY}; border-bottom-width: 4px; border-radius: 5px;"
         )
-        make_label(top, "🐾 MoodPet", 18, 6, 320, 38, 18, 900).setStyleSheet(
+        icon_shell = QFrame(top)
+        icon_shell.setGeometry(14, 10, 30, 30)
+        icon_shell.setStyleSheet(
+            "QFrame {"
+            "background: rgba(255, 255, 255, 0.82);"
+            f"border: 2px solid {NAVY};"
+            f"border-right: 4px solid {NAVY};"
+            f"border-bottom: 4px solid {NAVY};"
+            "border-radius: 7px;"
+            "}"
+        )
+        icon = QLabel(icon_shell)
+        icon.setGeometry(4, 4, 22, 22)
+        icon.setAlignment(Qt.AlignCenter)
+        icon.setPixmap(QIcon(str(self.base_dir / "mypetico.ico")).pixmap(22, 22))
+        make_label(top, "MoodPet 待办", 46, 6, 290, 38, 18, 900).setStyleSheet(
             "color: white; border: none; font-family: 'Microsoft YaHei'; font-size: 18pt; font-weight: 900;"
         )
 
         self.min_button = PixelButton("—", top, "#fffaf2")
         self.min_button.setGeometry(1228, 9, 34, 30)
         self.min_button.clicked.connect(self.showMinimized)
+        self.max_button = QPushButton("□", top)
+        self.max_button.setGeometry(1278, 9, 34, 30)
+        self.max_button.setCursor(Qt.PointingHandCursor)
+        self.max_button.setStyleSheet(
+            "QPushButton {"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #ecfffb, stop:1 #c9f2eb);"
+            f"color: {NAVY};"
+            f"border: 2px solid {NAVY};"
+            f"border-right: 4px solid {NAVY};"
+            f"border-bottom: 4px solid {NAVY};"
+            "border-radius: 5px;"
+            "font-family: 'Microsoft YaHei';"
+            "font-size: 12pt;"
+            "font-weight: 900;"
+            "padding: 0;"
+            "}"
+            "QPushButton:hover { background: #f7fffd; }"
+            "QPushButton:pressed { padding-left: 1px; padding-top: 2px; }"
+        )
+        self.max_button.clicked.connect(self._toggle_window_state)
         self.close_button = PixelButton("", top, PINK, "white")
-        self.close_button.setGeometry(1278, 9, 34, 30)
+        self.close_button.setGeometry(1318, 9, 30, 30)
         apply_button_icon(self.close_button, "close", 24)
         self.close_button.clicked.connect(self.hide)
 
         crumb = QFrame(self)
         crumb.setGeometry(8, 60, 1344, 46)
-        crumb.setStyleSheet(f"background-color: #fffaf2; border: 2px solid {LINE}; border-radius: 3px;")
+        crumb.setStyleSheet(
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef8, stop:1 #f7ecda);"
+            f"border: 2px solid {LINE}; border-right: 4px solid #c9a06f; border-bottom: 4px solid #c9a06f; border-radius: 4px;"
+        )
         make_label(crumb, "⌂  功能导航   ›   待办", 26, 5, 320, 34, 15, 900)
 
         footer = QFrame(self)
         footer.setGeometry(4, 710, 1352, 44)
-        footer.setStyleSheet(f"background-color: {NAVY}; border: 3px solid #071927; border-radius: 4px;")
+        footer.setStyleSheet(
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #0d3c4c, stop:1 #061f29);"
+            "border: 3px solid #071927; border-right: 5px solid #04141d; border-bottom: 5px solid #04141d; border-radius: 4px;"
+        )
         make_label(footer, "🐱  专注每一步，进步看得见 ✨", 96, 5, 360, 32, 12, 900).setStyleSheet(
             "color: #fff5cc; border: none; font-family: 'Microsoft YaHei'; font-size: 12pt; font-weight: 900;"
         )
@@ -130,13 +182,41 @@ class TodoPanelWindow(QWidget):
             "color: #91f18b; border: none; font-family: 'Microsoft YaHei'; font-size: 15pt; font-weight: 900;"
         )
 
+    def _chrome_mouse_press(self, event) -> None:
+        if event.button() == Qt.LeftButton:
+            self._chrome_dragging = True
+            self._chrome_drag_pos = event.globalPos() - self.frameGeometry().topLeft()
+            self.top.setCursor(Qt.ClosedHandCursor)
+            event.accept()
+            return
+        event.ignore()
+
+    def _chrome_mouse_move(self, event) -> None:
+        if self._chrome_dragging and event.buttons() & Qt.LeftButton:
+            self.move(event.globalPos() - self._chrome_drag_pos)
+            event.accept()
+            return
+        event.ignore()
+
+    def _chrome_mouse_release(self, event) -> None:
+        self._chrome_dragging = False
+        self.top.setCursor(Qt.OpenHandCursor)
+        event.accept()
+
+    def _toggle_window_state(self) -> None:
+        if self.isMaximized():
+            self.showNormal()
+        else:
+            self.showMaximized()
+
     def _build_left_panel(self) -> None:
-        self.left_shadow = pixel_shadow(self, 34, 120, 880, 568, 8, "#d8b98f")
+        self.left_shadow = pixel_shadow(self, 34, 120, 880, 568, 10, "#b98e61")
         self.left_panel = QFrame(self)
         self.left_panel.setGeometry(34, 120, 880, 568)
         self.left_panel.setStyleSheet(
-            f"background-color: {PANEL}; border: 2px solid {LINE};"
-            "border-right: 4px solid #c99462; border-bottom: 4px solid #c99462; border-radius: 8px;"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffdf7, stop:1 {PANEL});"
+            f"border: 2px solid {LINE}; border-left: 1px solid #fffef8; border-top: 1px solid #fffef8;"
+            "border-right: 5px solid #c99462; border-bottom: 5px solid #c99462; border-radius: 10px;"
         )
 
         icon = QLabel("", self.left_panel)
@@ -151,24 +231,49 @@ class TodoPanelWindow(QWidget):
         make_label(self.left_panel, "管理你的任务，保持专注与好心情", 118, 60, 430, 32, 13, 700)
 
         self.progress_panel = QFrame(self.left_panel)
-        self.progress_panel.setGeometry(652, 32, 210, 62)
+        self.progress_panel.setGeometry(646, 32, 218, 64)
         self.progress_panel.setStyleSheet(
-            "background-color: #fffaf2; border: 1px solid #e1bd91;"
-            "border-right: 3px solid #d29c67; border-bottom: 3px solid #d29c67; border-radius: 7px;"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef8, stop:1 #f7e7ca);"
+            "border: 1px solid #e1bd91; border-right: 4px solid #d29c67; border-bottom: 4px solid #d29c67; border-radius: 8px;"
         )
-        self.progress_text = make_label(self.progress_panel, "", 18, 8, 160, 28, 14, 900)
+        self.progress_text = make_label(self.progress_panel, "", 18, 8, 168, 28, 13, 900)
         self.progress_track = QFrame(self.progress_panel)
-        self.progress_track.setGeometry(18, 42, 172, 12)
+        self.progress_track.setGeometry(18, 44, 180, 12)
         self.progress_track.setStyleSheet("background-color: #ffe2b8; border: 1px solid #c68d4f; border-radius: 5px;")
         self.progress_fill = QFrame(self.progress_track)
         self.progress_fill.setGeometry(0, 0, 60, 12)
         self.progress_fill.setStyleSheet(f"background-color: {MINT}; border: none; border-radius: 5px;")
+        for child in self.left_panel.findChildren(QLabel):
+            geom = child.geometry()
+            if geom.x() == 118 and geom.y() == 20:
+                child.hide()
+            elif geom.x() == 118 and geom.y() == 60:
+                child.hide()
+        self.left_title_overlay = make_label(self.left_panel, "\u4ee3\u529e", 118, 20, 196, 42, 18, 900)
+        self.left_title_overlay.setStyleSheet(
+            "color: #10151b; border: none; font-family: 'Microsoft YaHei'; font-size: 18pt; font-weight: 900;"
+        )
+        self.left_title_overlay.raise_()
+        self.left_subtitle_overlay = make_label(
+            self.left_panel,
+            "\u7ba1\u7406\u4f60\u7684\u4efb\u52a1\uff0c\u4fdd\u6301\u4e13\u6ce8\u4e0e\u597d\u5fc3\u60c5",
+            118,
+            60,
+            450,
+            32,
+            12,
+            700,
+        )
+        self.left_subtitle_overlay.setStyleSheet(
+            "color: #10151b; border: none; font-family: 'Microsoft YaHei'; font-size: 12pt; font-weight: 700;"
+        )
+        self.left_subtitle_overlay.raise_()
 
         self.today_tab = PixelButton("▣  今日任务（4）", self.left_panel, "#fffaf2")
-        self.today_tab.setGeometry(18, 118, 238, 52)
+        self.today_tab.setGeometry(18, 118, 244, 52)
         self.today_tab.clicked.connect(lambda: self._set_tab("today"))
         self.done_tab = PixelButton("☑  已完成（1）", self.left_panel, "#fffaf2")
-        self.done_tab.setGeometry(266, 124, 190, 46)
+        self.done_tab.setGeometry(270, 124, 184, 46)
         self.done_tab.clicked.connect(lambda: self._set_tab("completed"))
         self.filter_button = PixelButton("▽  筛选", self.left_panel, "#fffaf2")
         self.filter_button.setGeometry(628, 124, 112, 40)
@@ -179,12 +284,22 @@ class TodoPanelWindow(QWidget):
 
         self.date_label = make_label(self.left_panel, "", 36, 184, 360, 32, 12, 800)
 
-        self.list_panel = QFrame(self.left_panel)
-        self.list_panel.setGeometry(28, 222, 820, 250)
-        self.list_panel.setStyleSheet("background: transparent; border: none;")
+        self.list_panel = QScrollArea(self.left_panel)
+        self.list_panel.setGeometry(28, 222, 826, 250)
+        self.list_panel.setWidgetResizable(False)
+        self.list_panel.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.list_panel.setStyleSheet(
+            "QScrollArea { background: transparent; border: none; }"
+            "QScrollBar:vertical { background: #f1debd; width: 12px; margin: 6px 0 6px 0; border-radius: 5px; }"
+            "QScrollBar::handle:vertical { background: #c89964; min-height: 24px; border-radius: 5px; }"
+            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0px; }"
+        )
+        self.list_content = QWidget()
+        self.list_content.setStyleSheet("background: transparent; border: none;")
+        self.list_panel.setWidget(self.list_content)
 
         self.input = QLineEdit(self.left_panel)
-        self.input.setGeometry(40, 490, 636, 72)
+        self.input.setGeometry(40, 490, 642, 72)
         self.input.setPlaceholderText("＋  添加新任务...")
         self.input.setStyleSheet(
             "QLineEdit { background-color: #fffaf2; border: 2px dashed #bda890; border-radius: 7px;"
@@ -193,37 +308,64 @@ class TodoPanelWindow(QWidget):
         )
         self.input.returnPressed.connect(self._add_task)
         self.add_button = PixelButton("添加任务", self.left_panel, MINT, "white")
-        self.add_button.setGeometry(696, 502, 140, 52)
+        self.add_button.setGeometry(702, 502, 136, 52)
+        self.add_button.setStyleSheet(
+            "QPushButton {"
+            f"background-color: {MINT}; color: white;"
+            "border: 2px solid #0f6f55;"
+            "border-right: 4px solid #07523f;"
+            "border-bottom: 4px solid #07523f;"
+            "border-radius: 7px;"
+            "font-family: 'Microsoft YaHei';"
+            "font-size: 11pt;"
+            "font-weight: 900;"
+            "padding: 6px 10px;"
+            "min-height: 34px;"
+            "}"
+            "QPushButton:hover { background-color: #22d9b4; color: white; }"
+            "QPushButton:pressed { padding-left: 8px; padding-top: 8px; }"
+        )
         self.add_button.clicked.connect(self._add_task)
 
+    def _layout_tabs(self) -> None:
+        if self.active_tab == "today":
+            self.today_tab.setGeometry(18, 116, 252, 56)
+            self.done_tab.setGeometry(280, 122, 176, 48)
+        else:
+            self.today_tab.setGeometry(18, 122, 176, 48)
+            self.done_tab.setGeometry(204, 116, 252, 56)
+
+
     def _build_assistant_panel(self) -> None:
-        self.right_shadow = pixel_shadow(self, 934, 120, 392, 568, 10, "#8eb9e8")
+        self.right_shadow = pixel_shadow(self, 934, 120, 392, 568, 12, "#6f9ad4")
         self.right_panel = QFrame(self)
         self.right_panel.setGeometry(934, 120, 392, 568)
         self.right_panel.setStyleSheet(
-            "background-color: #d8ebff; border: 3px solid #4a8ad9;"
-            "border-right: 5px solid #2c70bf; border-bottom: 5px solid #2c70bf; border-radius: 10px;"
+            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #e7f2ff, stop:1 #d2e7ff);"
+            "border: 3px solid #4a8ad9; border-left: 1px solid #dff0ff; border-top: 1px solid #dff0ff;"
+            "border-right: 6px solid #2c70bf; border-bottom: 6px solid #2c70bf; border-radius: 12px;"
         )
         make_label(self.right_panel, "🐾  MoodPet 小助手  🐾", 70, 8, 280, 34, 13, 900)
 
         mood_card = QFrame(self.right_panel)
-        mood_card.setGeometry(20, 52, 350, 128)
+        mood_card.setGeometry(18, 52, 356, 128)
         mood_card.setStyleSheet(
-            f"background-color: {PANEL}; border: 2px solid {LINE};"
-            "border-right: 3px solid #c99462; border-bottom: 3px solid #c99462; border-radius: 8px;"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef8, stop:1 {PANEL});"
+            f"border: 2px solid {LINE}; border-left: 1px solid #fffef8; border-top: 1px solid #fffef8;"
+            "border-right: 4px solid #c99462; border-bottom: 4px solid #c99462; border-radius: 9px;"
         )
         make_label(mood_card, "今日心情： 有点疲惫 😔", 22, 14, 310, 32, 14, 900)
         make_label(mood_card, "🐱", 28, 54, 54, 48, 25, 900)
         self.energy_track = QFrame(mood_card)
-        self.energy_track.setGeometry(88, 70, 226, 16)
+        self.energy_track.setGeometry(88, 70, 234, 16)
         self.energy_track.setStyleSheet("background-color: #ffe2b8; border: 1px solid #a16f3f; border-radius: 6px;")
         self.energy_fill = QFrame(self.energy_track)
-        self.energy_fill.setGeometry(0, 0, 150, 16)
+        self.energy_fill.setGeometry(0, 0, 154, 16)
         self.energy_fill.setStyleSheet("background-color: #ffd34f; border-right: 4px solid #18b888; border-radius: 5px;")
-        self.fatigue_label = make_label(mood_card, "", 88, 90, 180, 28, 11, 800)
+        self.fatigue_label = make_label(mood_card, "", 88, 92, 184, 28, 10, 800)
 
         self.bubble = QLabel("", self.right_panel)
-        self.bubble.setGeometry(26, 190, 286, 116)
+        self.bubble.setGeometry(26, 190, 292, 116)
         self.bubble.setWordWrap(True)
         self.bubble.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         self.bubble.setStyleSheet(
@@ -240,10 +382,11 @@ class TodoPanelWindow(QWidget):
         self.mascot_movie = movie
 
         recommend = QFrame(self.right_panel)
-        recommend.setGeometry(14, 466, 362, 86)
+        recommend.setGeometry(14, 466, 366, 86)
         recommend.setStyleSheet(
-            f"background-color: {PANEL}; border: 2px solid {LINE};"
-            "border-right: 3px solid #c99462; border-bottom: 3px solid #c99462; border-radius: 7px;"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef8, stop:1 {PANEL});"
+            f"border: 2px solid {LINE}; border-left: 1px solid #fffef8; border-top: 1px solid #fffef8;"
+            "border-right: 4px solid #c99462; border-bottom: 4px solid #c99462; border-radius: 8px;"
         )
         make_label(recommend, "⭐  为你推荐", 18, 2, 160, 30, 12, 900)
         make_label(recommend, "●", 20, 36, 36, 34, 20, 900).setStyleSheet(
@@ -252,64 +395,95 @@ class TodoPanelWindow(QWidget):
         make_label(recommend, "番茄钟专注 25 分钟", 60, 28, 176, 24, 10, 900)
         make_label(recommend, "专注一段，效率更高", 60, 51, 166, 20, 8, 700)
         self.focus_button = PixelButton("开始专注", recommend, MINT, "white")
-        self.focus_button.setGeometry(232, 36, 120, 38)
+        self.focus_button.setGeometry(228, 36, 128, 40)
         self.focus_button.setStyleSheet(
             "QPushButton {"
             f"background-color: {MINT}; color: white;"
             "border: 2px solid #0f6f55; border-right: 4px solid #07523f; border-bottom: 4px solid #07523f;"
-            "border-radius: 5px; font-family: 'Microsoft YaHei'; font-size: 10pt; font-weight: 900;"
-            "padding: 4px 6px;"
+            "border-radius: 7px; font-family: 'Microsoft YaHei'; font-size: 9pt; font-weight: 900;"
+            "padding: 4px 8px;"
             "}"
             "QPushButton:hover { background-color: #22d9b4; }"
-            "QPushButton:pressed { padding-left: 8px; padding-top: 6px; }"
+            "QPushButton:pressed { padding-left: 7px; padding-top: 6px; }"
         )
         self.focus_button.clicked.connect(self._focus_done)
+        for child in recommend.findChildren(QLabel):
+            geom = child.geometry()
+            if geom.x() == 18 and geom.y() == 2:
+                child.hide()
+            elif geom.x() == 20 and geom.y() == 36:
+                child.hide()
+            elif geom.x() == 58 and geom.y() == 28:
+                child.hide()
+            elif geom.x() == 58 and geom.y() == 51:
+                child.hide()
+        self.recommend_title_overlay = make_label(recommend, "\u4e3a\u4f60\u63a8\u8350", 18, 2, 164, 30, 11, 900)
+        self.recommend_title_overlay.setStyleSheet(
+            "color: #10151b; border: none; font-family: 'Microsoft YaHei'; font-size: 11pt; font-weight: 900;"
+        )
+        self.recommend_title_overlay.raise_()
+        self.recommend_icon_overlay = make_label(recommend, "●", 20, 36, 36, 34, 20, 900)
+        self.recommend_icon_overlay.setStyleSheet(
+            "color: #f44336; border: none; font-family: 'Microsoft YaHei'; font-size: 20pt; font-weight: 900;"
+        )
+        self.recommend_icon_overlay.raise_()
+        self.recommend_focus_text = make_label(recommend, "\u756a\u8304\u949f\u4e13\u6ce8 25 \u5206\u949f", 58, 28, 180, 24, 9, 900)
+        self.recommend_focus_text.setStyleSheet(
+            "color: #10151b; border: none; font-family: 'Microsoft YaHei'; font-size: 9pt; font-weight: 900;"
+        )
+        self.recommend_focus_text.raise_()
+        self.recommend_focus_hint = make_label(recommend, "\u4e13\u6ce8\u4e00\u6bb5\uff0c\u6548\u7387\u66f4\u9ad8", 58, 51, 172, 20, 8, 700)
+        self.recommend_focus_hint.setStyleSheet(
+            "color: #10151b; border: none; font-family: 'Microsoft YaHei'; font-size: 8pt; font-weight: 700;"
+        )
+        self.recommend_focus_hint.raise_()
 
     def _create_row(self, item: TodoItem, y: int) -> QFrame:
-        row = QFrame(self.list_panel)
-        row.setGeometry(0, y, 820, 56)
+        row = QFrame(self.list_content)
+        row.setGeometry(0, y, 826, 58)
         bg = "#edf8e6" if item.completed else "#fffaf2"
         row.setStyleSheet(
-            f"background-color: {bg}; border: 1px solid #e1bd91;"
-            "border-right: 3px solid #d0a06d; border-bottom: 3px solid #d0a06d; border-radius: 7px;"
+            f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef7, stop:1 {bg});"
+            "border: 1px solid #e1bd91; border-left: 1px solid #fffdf8; border-top: 1px solid #fffdf8;"
+            "border-right: 4px solid #d0a06d; border-bottom: 4px solid #d0a06d; border-radius: 8px;"
         )
 
         check = QPushButton("✓" if item.completed else "", row)
-        check.setGeometry(20, 14, 30, 30)
+        check.setGeometry(18, 14, 32, 32)
         check.setCursor(Qt.PointingHandCursor)
         check.setStyleSheet(
             "QPushButton { background-color: "
             + (MINT if item.completed else "#fffaf2")
-            + "; color: white; border: 2px solid #d9a26f; border-radius: 4px;"
-            "font-family: 'Microsoft YaHei'; font-size: 17pt; font-weight: 900; }"
+            + "; color: white; border: 2px solid #d9a26f; border-radius: 5px;"
+            "font-family: 'Microsoft YaHei'; font-size: 16pt; font-weight: 900; }"
         )
         check.clicked.connect(lambda checked=False, item_id=item.id: self._toggle_completed(item_id))
 
-        title = make_label(row, item.title, 70, 12, 270, 32, 12, 900)
+        title = make_label(row, item.title, 68, 12, 290, 32, 11, 900)
         if item.completed:
             title.setStyleSheet(
-                "color: #222; border: none; font-family: 'Microsoft YaHei'; font-size: 12pt; font-weight: 900;"
+                "color: #222; border: none; font-family: 'Microsoft YaHei'; font-size: 11pt; font-weight: 900;"
             )
 
         chip_color = CATEGORY_COLORS.get(item.category, BLUE)
         chip = QLabel(item.category, row)
-        chip.setGeometry(350, 16, 54, 26)
+        chip.setGeometry(364, 16, 54, 26)
         chip.setAlignment(Qt.AlignCenter)
         chip.setStyleSheet(
             f"background-color: #fff7e9; color: {chip_color}; border: 1px solid {chip_color};"
-            "border-radius: 4px; font-family: 'Microsoft YaHei'; font-size: 10pt; font-weight: 900;"
+            "border-radius: 4px; font-family: 'Microsoft YaHei'; font-size: 9pt; font-weight: 900;"
         )
 
         status = item.completed_at + " 完成" if item.completed else f"{item.due_time} 截止"
-        status_label = make_label(row, status, 584, 12, 164, 32, 10, 700)
+        status_label = make_label(row, status, 578, 12, 178, 32, 9, 700)
         status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         star = QPushButton("★" if item.starred else "☆", row)
-        star.setGeometry(766, 12, 34, 34)
+        star.setGeometry(780, 12, 32, 34)
         star.setCursor(Qt.PointingHandCursor)
         star.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {GOLD if item.starred else '#d0935f'};"
-            "border: none; font-family: 'Microsoft YaHei'; font-size: 21pt; font-weight: 900; }}"
+            "border: none; font-family: 'Microsoft YaHei'; font-size: 19pt; font-weight: 900; }}"
         )
         star.clicked.connect(lambda checked=False, item_id=item.id: self._toggle_starred(item_id))
         return row
@@ -360,12 +534,15 @@ class TodoPanelWindow(QWidget):
         self.progress_fill.setFixedWidth(max(0, min(172, int(172 * completion_ratio(self.todos)))))
         self.date_label.setText("▦  " + today_label())
         self.filter_button.setText({"time": "▽  筛选", "category": "▤  分类", "starred": "★  星标"}[self.sort_mode])
+        self._layout_tabs()
 
         self.today_tab.setStyleSheet(self._tab_style(self.active_tab == "today"))
         self.done_tab.setStyleSheet(self._tab_style(self.active_tab == "completed"))
 
         rows = visible_todos(self.todos, self.active_tab, self.sort_mode)
-        for index, item in enumerate(rows[:4]):
+        self.list_content.setFixedSize(826, max(250, max(1, len(rows)) * 60))
+        self.list_panel.verticalScrollBar().setValue(0)
+        for index, item in enumerate(rows):
             row = self._create_row(item, index * 60)
             row.show()
             self.row_frames.append(row)
@@ -382,7 +559,7 @@ class TodoPanelWindow(QWidget):
             "QPushButton {"
             f"background-color: {bg}; color: #102943; border: 2px solid {border};"
             "border-right: 4px solid #8b6a4e; border-bottom: 4px solid #8b6a4e; border-radius: 8px;"
-            "font-family: 'Microsoft YaHei'; font-size: 12pt; font-weight: 900; padding: 7px 10px;"
+            "font-family: 'Microsoft YaHei'; font-size: 11pt; font-weight: 900; padding: 6px 9px;"
             "}"
             "QPushButton:hover { background-color: #fffaf2; }"
         )
