@@ -368,6 +368,7 @@ class MiniGamePanelWindow(QWidget):
         self.setFixedSize(1360, 760)
         self.setStyleSheet(f"background-color: {CREAM};")
         self._build_ui()
+        self._style_top_chrome()
         self.refresh()
 
     def _build_ui(self) -> None:
@@ -397,6 +398,59 @@ class MiniGamePanelWindow(QWidget):
         crumb.setGeometry(272, 64, 1078, 44)
         crumb.setStyleSheet(raised_panel_style("#fffaf2", SOFT_LINE, 4, "#c59a70"))
         label(crumb, "⌂  >  功能导航  >  小游戏", (24, 4, 360, 34), 15, 900)
+
+    def _style_top_chrome(self) -> None:
+        top = None
+        crumb = None
+        for child in self.findChildren(QFrame):
+            geom = child.geometry()
+            if geom == QRect(4, 4, 1352, 54):
+                top = child
+            elif geom == QRect(272, 64, 1078, 44):
+                crumb = child
+
+        if top is not None:
+            header_cover = QFrame(top)
+            header_cover.setGeometry(8, 6, 420, 40)
+            header_cover.setStyleSheet(
+                "QFrame {"
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #67dccb, stop:0.35 #4ecdb9, stop:1 #39b79e);"
+                "border: none;"
+                "}"
+            )
+            brand_shell = QFrame(header_cover)
+            brand_shell.setGeometry(4, 4, 28, 28)
+            brand_shell.setStyleSheet(
+                "QFrame {"
+                "background: rgba(255, 255, 255, 0.16);"
+                "border: 2px solid #f7fffd;"
+                "border-right: 3px solid #0c5f59;"
+                "border-bottom: 3px solid #0c5f59;"
+                "border-radius: 6px;"
+                "}"
+            )
+            brand_icon = QLabel(brand_shell)
+            brand_icon.setGeometry(3, 3, 20, 20)
+            brand_icon.setAlignment(Qt.AlignCenter)
+            apply_label_icon(brand_icon, "sidebar_default", 20, "#ffffff")
+            label(header_cover, "MoodPet 陪伴中", (38, 2, 260, 32), 16, 900).setStyleSheet(
+                "color: white; border: none; background: transparent;"
+            )
+
+        if crumb is not None:
+            crumb_cover = QFrame(crumb)
+            crumb_cover.setGeometry(2, 2, 1074, 40)
+            crumb_cover.setStyleSheet(
+                "QFrame {"
+                "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffef8, stop:1 #f7ecda);"
+                "border: none;"
+                "}"
+            )
+            crumb_icon = QLabel(crumb_cover)
+            crumb_icon.setGeometry(16, 8, 20, 20)
+            crumb_icon.setAlignment(Qt.AlignCenter)
+            apply_label_icon(crumb_icon, "back", 20, "#247fd8")
+            label(crumb_cover, "功能导航  >  小游戏", (42, 2, 360, 32), 15, 900)
 
     def _build_sidebar(self) -> None:
         self.side_shadow = card_shadow(self, 10, 64, 250, 686, 12, "#a07952")
