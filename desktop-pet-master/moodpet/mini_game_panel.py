@@ -248,12 +248,12 @@ class MiniGamePanelWindow(QWidget):
             "background-color: #2e4666; color: #ffd28d; border: 3px solid #102943;"
             "border-radius: 5px; font: 900 24pt 'Microsoft YaHei';"
         )
-        self.story_title = label(self.header_card, "", (138, 18, 360, 32), 17, 900)
+        self.story_title = label(self.header_card, "", (138, 18, 410, 32), 15, 900)
         self.subtitle = label(self.header_card, "", (140, 52, 390, 28), 11, 700)
         self.progress_label = label(self.header_card, "", (140, 84, 100, 26), 11, 800)
         self.progress_nodes = label(self.header_card, "① 开场 ━ ② 事件 ━ ③ 选择 ━ ④ 线索 ━ ⑤ 结尾", (250, 82, 430, 28), 10, 900)
         self.continue_button = PixelButton("继续故事", self.header_card, BLUE, "white")
-        self.continue_button.setGeometry(552, 30, 140, 48)
+        self.continue_button.setGeometry(536, 30, 156, 48)
         apply_button_icon(self.continue_button, "story_choice", 24)
         self.continue_button.clicked.connect(self._continue_story)
 
@@ -313,9 +313,9 @@ class MiniGamePanelWindow(QWidget):
 
     def _build_right_panel(self) -> None:
         self.theme_card = self._right_card(1040, 118, 292, 132, "当前故事主题")
-        self.theme_subject = label(self.theme_card, "", (24, 38, 240, 24), 11, 800)
-        self.theme_mood = label(self.theme_card, "", (24, 66, 240, 24), 11, 800)
-        self.theme_style = label(self.theme_card, "", (24, 94, 240, 24), 11, 800)
+        self.theme_subject = label(self.theme_card, "", (24, 38, 252, 24), 10, 800)
+        self.theme_mood = label(self.theme_card, "", (24, 66, 252, 24), 10, 800)
+        self.theme_style = label(self.theme_card, "", (24, 94, 252, 24), 10, 800)
 
         self.feedback_card = self._right_card(1040, 266, 292, 116, "桌宠反馈")
         mascot = QLabel(self.feedback_card)

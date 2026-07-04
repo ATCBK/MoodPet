@@ -17,6 +17,7 @@ def test_recommended_feature_icon_names_are_stable():
     assert pixel_icon_name("games") == "pixelarticons:gamepad"
     assert pixel_icon_name("settings") == "pixelarticons:sliders"
     assert pixel_icon_name("bubble") == "pixelarticons:message"
+    assert pixel_icon_name("message") == "pixelarticons:message"
     assert pixel_icon_name("close") == "pixelarticons:close"
 
 

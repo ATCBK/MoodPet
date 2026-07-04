@@ -54,6 +54,8 @@ class PixelButton(QPushButton):
             f"background-color: {color};"
             f"color: {text_color};"
             "border: 2px solid #b99169;"
+            "border-right: 4px solid #7d6046;"
+            "border-bottom: 4px solid #7d6046;"
             "border-radius: 5px;"
             "font-family: 'Microsoft YaHei';"
             "font-size: 12pt;"
@@ -63,6 +65,14 @@ class PixelButton(QPushButton):
             "QPushButton:hover { background-color: #fffaf2; }"
             "QPushButton:pressed { padding-left: 14px; padding-top: 9px; }"
         )
+
+
+def pixel_shadow(parent: QWidget, x: int, y: int, w: int, h: int, radius: int = 8, color: str = "#c49b73") -> QFrame:
+    shadow = QFrame(parent)
+    shadow.setGeometry(x + 5, y + 5, w, h)
+    shadow.setStyleSheet(f"background-color: {color}; border: none; border-radius: {radius}px;")
+    shadow.lower()
+    return shadow
 
 
 class TodoPanelWindow(QWidget):
@@ -121,9 +131,13 @@ class TodoPanelWindow(QWidget):
         )
 
     def _build_left_panel(self) -> None:
+        self.left_shadow = pixel_shadow(self, 34, 120, 880, 568, 8, "#d8b98f")
         self.left_panel = QFrame(self)
         self.left_panel.setGeometry(34, 120, 880, 568)
-        self.left_panel.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {LINE}; border-radius: 8px;")
+        self.left_panel.setStyleSheet(
+            f"background-color: {PANEL}; border: 2px solid {LINE};"
+            "border-right: 4px solid #c99462; border-bottom: 4px solid #c99462; border-radius: 8px;"
+        )
 
         icon = QLabel("", self.left_panel)
         icon.setGeometry(28, 24, 70, 70)
@@ -133,12 +147,15 @@ class TodoPanelWindow(QWidget):
             "background-color: #fff0f3; border: 3px solid #f29aaa; border-radius: 10px;"
             "font-family: 'Microsoft YaHei'; font-size: 26pt;"
         )
-        make_label(self.left_panel, "待办", 118, 20, 170, 42, 22, 900)
+        make_label(self.left_panel, "待办", 118, 20, 170, 42, 20, 900)
         make_label(self.left_panel, "管理你的任务，保持专注与好心情", 118, 60, 430, 32, 13, 700)
 
         self.progress_panel = QFrame(self.left_panel)
         self.progress_panel.setGeometry(652, 32, 210, 62)
-        self.progress_panel.setStyleSheet("background-color: #fffaf2; border: 1px solid #e1bd91; border-radius: 7px;")
+        self.progress_panel.setStyleSheet(
+            "background-color: #fffaf2; border: 1px solid #e1bd91;"
+            "border-right: 3px solid #d29c67; border-bottom: 3px solid #d29c67; border-radius: 7px;"
+        )
         self.progress_text = make_label(self.progress_panel, "", 18, 8, 160, 28, 14, 900)
         self.progress_track = QFrame(self.progress_panel)
         self.progress_track.setGeometry(18, 42, 172, 12)
@@ -163,7 +180,7 @@ class TodoPanelWindow(QWidget):
         self.date_label = make_label(self.left_panel, "", 36, 184, 360, 32, 12, 800)
 
         self.list_panel = QFrame(self.left_panel)
-        self.list_panel.setGeometry(28, 224, 820, 246)
+        self.list_panel.setGeometry(28, 222, 820, 250)
         self.list_panel.setStyleSheet("background: transparent; border: none;")
 
         self.input = QLineEdit(self.left_panel)
@@ -179,14 +196,21 @@ class TodoPanelWindow(QWidget):
         self.add_button.clicked.connect(self._add_task)
 
     def _build_assistant_panel(self) -> None:
+        self.right_shadow = pixel_shadow(self, 934, 120, 392, 568, 10, "#8eb9e8")
         self.right_panel = QFrame(self)
         self.right_panel.setGeometry(934, 120, 392, 568)
-        self.right_panel.setStyleSheet("background-color: #d8ebff; border: 3px solid #4a8ad9; border-radius: 10px;")
+        self.right_panel.setStyleSheet(
+            "background-color: #d8ebff; border: 3px solid #4a8ad9;"
+            "border-right: 5px solid #2c70bf; border-bottom: 5px solid #2c70bf; border-radius: 10px;"
+        )
         make_label(self.right_panel, "🐾  MoodPet 小助手  🐾", 70, 8, 280, 34, 13, 900)
 
         mood_card = QFrame(self.right_panel)
         mood_card.setGeometry(20, 52, 350, 128)
-        mood_card.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {LINE}; border-radius: 8px;")
+        mood_card.setStyleSheet(
+            f"background-color: {PANEL}; border: 2px solid {LINE};"
+            "border-right: 3px solid #c99462; border-bottom: 3px solid #c99462; border-radius: 8px;"
+        )
         make_label(mood_card, "今日心情： 有点疲惫 😔", 22, 14, 310, 32, 14, 900)
         make_label(mood_card, "🐱", 28, 54, 54, 48, 25, 900)
         self.energy_track = QFrame(mood_card)
@@ -216,15 +240,18 @@ class TodoPanelWindow(QWidget):
 
         recommend = QFrame(self.right_panel)
         recommend.setGeometry(14, 466, 362, 86)
-        recommend.setStyleSheet(f"background-color: {PANEL}; border: 2px solid {LINE}; border-radius: 7px;")
+        recommend.setStyleSheet(
+            f"background-color: {PANEL}; border: 2px solid {LINE};"
+            "border-right: 3px solid #c99462; border-bottom: 3px solid #c99462; border-radius: 7px;"
+        )
         make_label(recommend, "⭐  为你推荐", 18, 2, 160, 30, 12, 900)
         make_label(recommend, "●", 20, 36, 36, 34, 20, 900).setStyleSheet(
             "color: #f44336; border: none; font-family: 'Microsoft YaHei'; font-size: 20pt; font-weight: 900;"
         )
-        make_label(recommend, "番茄钟专注 25 分钟", 60, 28, 188, 24, 10, 900)
-        make_label(recommend, "专注一段，效率更高", 60, 51, 176, 20, 8, 700)
+        make_label(recommend, "番茄钟专注 25 分钟", 60, 28, 176, 24, 10, 900)
+        make_label(recommend, "专注一段，效率更高", 60, 51, 166, 20, 8, 700)
         self.focus_button = PixelButton("开始专注", recommend, MINT, "white")
-        self.focus_button.setGeometry(266, 38, 86, 34)
+        self.focus_button.setGeometry(244, 36, 108, 38)
         self.focus_button.clicked.connect(self._focus_done)
 
     def _create_row(self, item: TodoItem, y: int) -> QFrame:

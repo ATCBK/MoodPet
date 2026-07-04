@@ -74,7 +74,7 @@ def build_monitor_rows(state: EmotionState, enabled: bool) -> List[MonitorRow]:
 
 def build_trend_points(state: EmotionState, enabled: bool) -> List[Tuple[str, int]]:
     if not enabled:
-        return [(time, 0) for time in TREND_TIMES]
+        return list(zip(TREND_TIMES, TREND_BASE))
 
     current = confidence_percent(state)
     points = list(TREND_BASE)

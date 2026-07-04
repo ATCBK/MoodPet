@@ -19,7 +19,7 @@ from moodpet.bubble_policy import BubbleContext, BubbleSettings, build_bubble_re
 from moodpet.emotion import build_emotion_state
 from moodpet.emotion_camera import EmotionCameraWorker
 from moodpet.mini_game_panel import MiniGamePanelWindow
-from moodpet.pixel_icons import apply_button_icon
+from moodpet.pixel_icons import apply_button_icon, apply_label_icon
 from moodpet.realtime_panel import RealtimeMonitorWindow
 from moodpet.settings_panel import SettingsPanelWindow
 from moodpet.todo_panel import TodoPanelWindow
@@ -324,30 +324,99 @@ class DemoWin(QMainWindow):
 
     def _create_module_button(self, module, x, y):
         colors = {
-            "mint": "#b9ed9e",
-            "pink": "#ff9baa",
-            "lilac": "#c7a7ff",
-            "sky": "#9bd7ff",
+            "mint": ("#dbffd0", "#a9e996"),
+            "pink": ("#ffc9d4", "#f58ca2"),
+            "lilac": ("#ead7ff", "#b99cf4"),
+            "sky": ("#d9f0ff", "#92d0f2"),
         }
-        button = QPushButton(f"\n{module['title']}   ›", self.navigation_panel)
-        apply_button_icon(button, module.get("icon_feature", "navigation"), 40)
-        button.setGeometry(x, y, 156, 86)
+        icon_colors = {
+            "mint": "#0b9f8f",
+            "pink": "#263a54",
+            "lilac": "#293266",
+            "sky": "#30415c",
+        }
+        start_color, end_color = colors.get(module["accent"], colors["mint"])
+        icon_color = icon_colors.get(module["accent"], "#071927")
+
+        shadow = QFrame(self.navigation_panel)
+        shadow.setGeometry(x + 4, y + 6, 156, 94)
+        shadow.setStyleSheet(
+            "QFrame {"
+            "background-color: #273047;"
+            "border: 3px solid #071927;"
+            "border-radius: 10px;"
+            "}"
+        )
+        self._bind_module_click(shadow, module["id"])
+
+        card = QFrame(self.navigation_panel)
+        card.setGeometry(x, y, 156, 94)
+        card.setStyleSheet(
+            "QFrame {"
+            f"background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {start_color}, stop:1 {end_color});"
+            "border: 3px solid #071927;"
+            "border-radius: 10px;"
+            "}"
+        )
+        self._bind_module_click(card, module["id"])
+
+        icon = QLabel(card)
+        icon.setGeometry(0, 10, 156, 38)
+        icon.setAlignment(Qt.AlignCenter)
+        icon.setStyleSheet("QLabel { border: none; background: transparent; }")
+        apply_label_icon(icon, module.get("icon_feature", "navigation"), 40, icon_color)
+        self._bind_module_click(icon, module["id"])
+
+        title = QLabel(module["title"], card)
+        title.setGeometry(0, 54, 128, 32)
+        title.setAlignment(Qt.AlignCenter)
+        title.setStyleSheet(
+            "QLabel {"
+            "border: none;"
+            "background: transparent;"
+            "color: #071927;"
+            "font: 16pt 'Microsoft YaHei';"
+            "font-weight: 900;"
+            "}"
+        )
+        self._bind_module_click(title, module["id"])
+
+        arrow = QLabel("›", card)
+        arrow.setGeometry(124, 54, 20, 32)
+        arrow.setAlignment(Qt.AlignCenter)
+        arrow.setStyleSheet(
+            "QLabel {"
+            "border: none;"
+            "background: transparent;"
+            "color: #071927;"
+            "font: 19pt 'Microsoft YaHei';"
+            "font-weight: 900;"
+            "}"
+        )
+        self._bind_module_click(arrow, module["id"])
+
+        button = QPushButton("", card)
+        button.setGeometry(0, 0, 156, 94)
         button.setToolTip(f"{module['description']}，{module['cta']}")
         button.setStyleSheet(
             "QPushButton {"
-            f"background-color: {colors.get(module['accent'], '#b9ed9e')};"
-            "color: #071927;"
-            "border: 3px solid #071927;"
-            "border-radius: 10px;"
-            "font: 15pt 'Microsoft YaHei';"
-            "font-weight: 900;"
-            "padding: 8px 12px;"
-            "text-align: left;"
+            "background-color: rgba(255, 255, 255, 0);"
+            "border: none;"
             "}"
-            "QPushButton:hover { background-color: #fff3c9; }"
-            "QPushButton:pressed { padding-left: 14px; padding-top: 10px; }"
+            "QPushButton:hover { background-color: rgba(255, 255, 255, 36); }"
+            "QPushButton:pressed { background-color: rgba(7, 25, 39, 18); }"
         )
         return button
+
+    def _bind_module_click(self, widget, module_id):
+        widget.setCursor(Qt.PointingHandCursor)
+
+        def open_module(event, selected_module_id=module_id):
+            if event.button() == Qt.LeftButton:
+                self.open_feature_module(selected_module_id)
+                event.accept()
+
+        widget.mousePressEvent = open_module
 
     def open_feature_module(self, module_id):
         if module_id == "realtime":

@@ -53,9 +53,9 @@ class PixelButton(QPushButton):
             "border: 3px solid #102029;"
             "border-radius: 7px;"
             "font-family: 'Microsoft YaHei';"
-            "font-size: 12pt;"
+            "font-size: 11pt;"
             "font-weight: 900;"
-            "padding: 8px 14px;"
+            "padding: 6px 10px;"
             "}"
             "QPushButton:hover { background-color: #22d9b4; }"
             "QPushButton:pressed { padding-top: 10px; padding-left: 16px; }"
@@ -230,6 +230,7 @@ class RealtimeMonitorWindow(QWidget):
         self.is_enabled = is_enabled
         self.toggle_recognition = toggle_recognition
         self.row_labels: List[QLabel] = []
+        self.row_frames: List[QFrame] = []
         self.setWindowTitle("MoodPet 实时检测")
         self.setFixedSize(1360, 760)
         self.setStyleSheet(f"background-color: {CREAM};")
@@ -310,39 +311,47 @@ class RealtimeMonitorWindow(QWidget):
         controls.setStyleSheet(f"background-color: {PANEL}; border: 2px solid #b99169; border-radius: 5px;")
         label(controls, "摄像头：", (20, 19, 80, 34), 12, 900)
         self.camera_select = QComboBox(controls)
-        self.camera_select.setGeometry(96, 18, 200, 36)
+        self.camera_select.setGeometry(92, 18, 184, 36)
         self.camera_select.addItems(["Integrated Camera", "Mock Camera"])
         self.camera_select.setStyleSheet(
             "QComboBox { background: #fffaf2; border: 2px solid #b99169; border-radius: 5px;"
             "font-family: 'Microsoft YaHei'; font-size: 11pt; font-weight: 700; padding-left: 10px; }"
         )
         self.open_button = PixelButton("打开预览", controls, MINT)
-        self.open_button.setGeometry(328, 15, 132, 42)
-        apply_button_icon(self.open_button, "camera", 24)
+        self.open_button.setGeometry(296, 15, 138, 42)
+        apply_button_icon(self.open_button, "camera", 20)
         self.open_button.clicked.connect(self._ensure_open)
         self.close_preview_button = PixelButton("关闭预览", controls, PINK)
-        self.close_preview_button.setGeometry(472, 15, 106, 42)
-        apply_button_icon(self.close_preview_button, "video", 24)
+        self.close_preview_button.setGeometry(448, 15, 128, 42)
+        apply_button_icon(self.close_preview_button, "video", 20)
         self.close_preview_button.clicked.connect(self._ensure_closed)
 
         self.info_panel = QFrame(self)
         self.info_panel.setGeometry(930, 96, 410, 270)
         self.info_panel.setStyleSheet(f"background-color: {PANEL}; border: 2px solid #b99169; border-radius: 8px;")
         label(self.info_panel, "♥ 实时检测信息", (20, 10, 250, 36), 15, 900)
-        for index in range(4):
-            row = QLabel(self.info_panel)
-            row.setGeometry(24, 58 + index * 52, 360, 44)
-            row.setStyleSheet(
-                "background-color: rgba(255,255,255,70); border: none; border-bottom: 1px solid #d5b58c;"
-                "color: #111318; font-family: 'Microsoft YaHei'; font-size: 13pt; font-weight: 900; padding-left: 8px;"
+        row_specs = [(54, 36), (98, 36), (142, 62), (212, 36)]
+        for index, (row_y, row_h) in enumerate(row_specs):
+            row_frame = QFrame(self.info_panel)
+            row_frame.setGeometry(24, row_y, 360, row_h)
+            row_frame.setStyleSheet(
+                "QFrame { background-color: rgba(255,255,255,70); border: none; border-bottom: 1px solid #d5b58c; }"
             )
-            self.row_labels.append(row)
+            row_label = QLabel(row_frame)
+            row_label.setGeometry(8, 0, 340, 32)
+            row_label.setStyleSheet(
+                "color: #111318; border: none; font-family: 'Microsoft YaHei';"
+                "font-size: 11pt; font-weight: 900;"
+            )
+            row_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+            self.row_frames.append(row_frame)
+            self.row_labels.append(row_label)
 
-        self.confidence_bar = QFrame(self.info_panel)
-        self.confidence_bar.setGeometry(154, 166, 214, 16)
+        self.confidence_bar = QFrame(self.row_frames[2])
+        self.confidence_bar.setGeometry(150, 38, 196, 14)
         self.confidence_bar.setStyleSheet("background-color: #fffaf2; border: 2px solid #8d6c4c; border-radius: 7px;")
         self.confidence_fill = QFrame(self.confidence_bar)
-        self.confidence_fill.setGeometry(0, 0, 160, 16)
+        self.confidence_fill.setGeometry(0, 0, 0, 14)
         self.confidence_fill.setStyleSheet(f"background-color: {MINT}; border: none; border-radius: 6px;")
 
         chart_panel = QFrame(self)
@@ -355,14 +364,18 @@ class RealtimeMonitorWindow(QWidget):
         tip = QFrame(self)
         tip.setGeometry(302, 632, 642, 86)
         tip.setStyleSheet(f"background-color: {PANEL}; border: 2px solid #d5b58c; border-radius: 7px;")
-        label(tip, "💡 提示：此页面为实时可见预览，方便观察当前情绪状态；", (24, 12, 570, 28), 12, 900)
-        label(tip, "即使关闭此页面，后台静默检测仍将持续运行，不会影响数据记录与分析。", (92, 46, 520, 28), 12, 900)
+        tip_title = label(tip, "💡 提示：此页面为实时可见预览，方便观察当前情绪状态。", (22, 10, 596, 28), 10, 900)
+        tip_title.setWordWrap(True)
+        tip_body = label(tip, "关闭面板后，后台静默检测仍可继续运行，不影响数据记录与分析。", (78, 42, 520, 32), 10, 900)
+        tip_body.setWordWrap(True)
 
         pet_note = QLabel("我会默默陪伴你，\n记录每一种情绪！", self)
-        pet_note.setGeometry(982, 626, 180, 70)
+        pet_note.setGeometry(966, 620, 204, 82)
+        pet_note.setWordWrap(True)
+        pet_note.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         pet_note.setStyleSheet(
             f"background-color: {PANEL}; color: {INK}; border: 2px solid #b99169;"
-            "font-family: 'Microsoft YaHei'; font-size: 12pt; font-weight: 900; padding: 8px;"
+            "font-family: 'Microsoft YaHei'; font-size: 10pt; font-weight: 900; padding: 8px;"
         )
         mascot = QLabel(self)
         mascot.setGeometry(1188, 614, 120, 120)
@@ -391,7 +404,7 @@ class RealtimeMonitorWindow(QWidget):
         for label_widget, row in zip(self.row_labels, rows):
             label_widget.setText(f"{row.icon}   {row.title}：   {row.value}")
         percent = confidence_percent(state) if enabled else 0
-        self.confidence_fill.setFixedWidth(max(0, min(210, int(210 * percent / 100))))
+        self.confidence_fill.setFixedWidth(max(0, min(192, int(192 * percent / 100))))
         self.preview.set_state(state, enabled)
         if enabled and not self.preview.active:
             self.preview.start_preview(self.camera_select.currentIndex())

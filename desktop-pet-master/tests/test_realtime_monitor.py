@@ -1,4 +1,9 @@
 import unittest
+import os
+import sys
+from pathlib import Path
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from moodpet.emotion import build_emotion_state
 from moodpet.realtime_monitor import (
@@ -29,13 +34,14 @@ class RealtimeMonitorTest(unittest.TestCase):
 
         self.assertEqual(confidence_percent(state), 62)
 
-    def test_disabled_trend_is_flat_zero(self):
+    def test_disabled_trend_still_shows_mock_curve(self):
         state = build_emotion_state("disabled")
 
         points = build_trend_points(state, enabled=False)
 
         self.assertEqual(len(points), 9)
-        self.assertTrue(all(value == 0 for _, value in points))
+        self.assertGreater(max(value for _, value in points), 0)
+        self.assertEqual(points[0][0], "00:00")
 
     def test_enabled_trend_includes_current_confidence_near_end(self):
         state = build_emotion_state("sad", 0.34)
@@ -55,6 +61,29 @@ class RealtimeMonitorTest(unittest.TestCase):
     def test_unknown_english_label_and_clamping_are_stable(self):
         self.assertEqual(emotion_english_label("mystery"), "observing")
         self.assertEqual(clamp_trend_values([("a", -2), ("b", 101), ("c", 40)]), [("a", 0), ("b", 100), ("c", 40)])
+
+    def test_confidence_bar_stays_inside_confidence_row(self):
+        from PyQt5.QtWidgets import QApplication
+        from moodpet.realtime_panel import RealtimeMonitorWindow
+
+        app = QApplication.instance() or QApplication(sys.argv)
+        state = build_emotion_state("happy", 0.86)
+        window = RealtimeMonitorWindow(
+            Path(__file__).resolve().parents[1],
+            get_state=lambda: state,
+            is_enabled=lambda: False,
+            toggle_recognition=lambda: None,
+        )
+
+        confidence_row = window.row_frames[2]
+        bar = window.confidence_bar
+        fill = window.confidence_fill
+
+        self.assertIs(bar.parent(), confidence_row)
+        self.assertLessEqual(bar.x() + bar.width(), confidence_row.width())
+        self.assertLessEqual(bar.y() + bar.height(), confidence_row.height())
+        self.assertLessEqual(fill.width(), bar.width())
+        app.processEvents()
 
 
 if __name__ == "__main__":
