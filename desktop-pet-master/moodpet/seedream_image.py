@@ -172,6 +172,13 @@ class SeedreamImageService:
         path.write_bytes(self.client.download_image(image_url))
         return path
 
+    def cached_node_image_path(self, state: MiniGameState) -> Optional[Path]:
+        prompt = build_node_image_prompt(state)
+        path = self._node_cache_path(state, prompt)
+        if path.exists() and path.stat().st_size > 0:
+            return path
+        return None
+
     def _cache_path(self, state: MiniGameState, choice: StoryChoice, prompt: str) -> Path:
         digest = hashlib.sha1(prompt.encode("utf-8")).hexdigest()[:12]
         safe_story = _safe_slug(state.story_title)

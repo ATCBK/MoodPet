@@ -640,13 +640,14 @@ class MiniGamePanelWindow(QWidget):
         self.subtitle.setText(self.state.subtitle)
         self.progress_label.setText(progress_text(self.state))
         self.scene.set_caption(node.scene_text)
+        self._prefetch_node_image()
         self._refresh_header_image()
         self.node_title.setText(node.title)
         self.node_prompt.setText(node.prompt)
         if hasattr(self, "feedback"):
             self.feedback.setText(node.pet_reply)
         if hasattr(self, "task_status"):
-            if self.state.node_index >= 4:
+            if self.state.node_index >= len(self.state.nodes) - 1:
                 self.task_status.setText("故事已完成")
             elif self.state.interaction_done:
                 self.task_status.setText("选择已生效")
@@ -670,7 +671,6 @@ class MiniGamePanelWindow(QWidget):
                 button.setIcon(QIcon())
                 button.hide()
         self._prefetch_choice_images(choices)
-        self._prefetch_node_image()
 
         if hasattr(self, "clue_title"):
             self.clue_title.setText(f"🔎 已收集线索        {collected_count_text(self.state)}")
@@ -703,20 +703,8 @@ class MiniGamePanelWindow(QWidget):
         self.refresh()
 
     def _continue_story(self) -> None:
-        if self.state.interaction_done and self.state.node_index < 4:
-            self.state = MiniGameState(
-                story_title=self.state.story_title,
-                subtitle=self.state.subtitle,
-                theme_subject=self.state.theme_subject,
-                theme_mood=self.state.theme_mood,
-                theme_style=self.state.theme_style,
-                node_index=4,
-                nodes=self.state.nodes,
-                choices=self.state.choices,
-                clues=self.state.clues,
-                rewards=self.state.rewards,
-                interaction_done=True,
-            )
+        if self.state.interaction_done and self.state.node_index < len(self.state.nodes) - 1:
+            self.state = continue_story(self.state)
         elif not self.state.interaction_done:
             self._set_feedback("先完成轻量互动，把信纸拖回信封里。")
         self.refresh()
@@ -772,6 +760,44 @@ class MiniGamePanelWindow(QWidget):
             self._apply_choice_button_image(self.choice_buttons[index], choice.id)
         self._refresh_header_image()
 
+    def _prefetch_node_image(self) -> None:
+        if self.choice_image_service is None or not self.state.interaction_done:
+            return
+        image_key = self._node_image_key(self.state)
+        cached_path = self.choice_image_service.cached_node_image_path(self.state)
+        if cached_path is not None:
+            with self._image_lock:
+                self.node_image_paths[image_key] = cached_path
+                self.node_image_errors.pop(image_key, None)
+            return
+        with self._image_lock:
+            if image_key in self.node_image_paths or image_key in self.node_image_loading:
+                return
+            self.node_image_loading.add(image_key)
+        state_snapshot = self.state
+        thread = threading.Thread(
+            target=self._generate_node_image,
+            args=(state_snapshot,),
+            name=f"MoodPetSeedreamNode-{current_node(state_snapshot).id}",
+            daemon=True,
+        )
+        thread.start()
+
+    def _generate_node_image(self, state: MiniGameState) -> None:
+        image_key = self._node_image_key(state)
+        try:
+            assert self.choice_image_service is not None
+            path = self.choice_image_service.ensure_node_image(state)
+            with self._image_lock:
+                self.node_image_paths[image_key] = path
+                self.node_image_errors.pop(image_key, None)
+        except Exception as exc:
+            with self._image_lock:
+                self.node_image_errors[image_key] = str(exc)
+        finally:
+            with self._image_lock:
+                self.node_image_loading.discard(image_key)
+
     def _apply_choice_button_image(self, button: PixelButton, choice_id: str) -> None:
         image_key = self._choice_image_key(self.state, choice_id)
         with self._image_lock:
@@ -790,10 +816,14 @@ class MiniGamePanelWindow(QWidget):
     def _choice_image_key(self, state: MiniGameState, choice_id: str) -> str:
         return f"{state.node_index}:{choice_id}"
 
+    def _node_image_key(self, state: MiniGameState) -> str:
+        return f"node:{state.node_index}:{current_node(state).id}"
+
     def _refresh_header_image(self) -> None:
         with self._image_lock:
             selected_path = self.choice_image_paths.get(self.selected_choice_image_key, self.selected_choice_image_path)
-        path = selected_path or self._first_available_choice_image_path()
+            node_path = self.node_image_paths.get(self._node_image_key(self.state))
+        path = node_path or selected_path or self._first_available_choice_image_path()
         if path and path.exists():
             pixmap = QPixmap(str(path))
             if not pixmap.isNull():

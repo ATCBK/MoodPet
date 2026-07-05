@@ -3,7 +3,7 @@ import unittest
 import urllib.error
 from pathlib import Path
 
-from moodpet.mini_game_state import build_choice_image_prompt, build_default_game
+from moodpet.mini_game_state import build_choice_image_prompt, build_default_game, build_node_image_prompt, choose_event
 from moodpet.seedream_image import SeedreamImageClient, SeedreamImageService, load_seedream_config, post_json
 
 
@@ -17,6 +17,15 @@ class SeedreamImageTest(unittest.TestCase):
         self.assertIn(state.story_title, prompt)
         self.assertIn(state.choices[0].title, prompt)
         self.assertIn("MoodPet", prompt)
+
+    def test_node_prompt_uses_current_branch_content(self):
+        state = choose_event(build_default_game(), "clock")
+        prompt = build_node_image_prompt(state)
+
+        self.assertIn("pixel art", prompt)
+        self.assertIn("钟声里的暗号", prompt)
+        self.assertIn("MoodPet", prompt)
+        self.assertIn("no text", prompt)
 
     def test_client_posts_seedream_image_generation_request(self):
         captured = {}
@@ -67,6 +76,31 @@ class SeedreamImageTest(unittest.TestCase):
             self.assertTrue(first_path.exists())
             self.assertEqual(first_path.read_bytes(), b"fake-png")
             self.assertIn(state.choices[0].id, first_path.name)
+
+    def test_service_downloads_and_caches_node_image(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            download_calls = []
+
+            class FakeClient:
+                def generate_image_url(self, prompt):
+                    return "https://example.test/node.png"
+
+                def download_image(self, url):
+                    download_calls.append(url)
+                    return b"fake-node-png"
+
+            service = SeedreamImageService(FakeClient(), Path(temp_dir))
+            state = choose_event(build_default_game(), "pick_letter")
+
+            first_path = service.ensure_node_image(state)
+            second_path = service.ensure_node_image(state)
+
+            self.assertEqual(first_path, second_path)
+            self.assertEqual(download_calls, ["https://example.test/node.png"])
+            self.assertTrue(first_path.exists())
+            self.assertEqual(first_path.read_bytes(), b"fake-node-png")
+            self.assertIn("letter_date", first_path.name)
+            self.assertEqual(service.cached_node_image_path(state), first_path)
 
     def test_config_loader_builds_service_only_when_key_exists(self):
         config = load_seedream_config(
