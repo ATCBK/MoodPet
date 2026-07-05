@@ -20,6 +20,7 @@ from moodpet.bubble_policy import BubbleContext, BubbleSettings, can_emit_bubble
 from moodpet.deepseek_bubble import build_default_bubble_provider
 from moodpet.emotion import build_emotion_state
 from moodpet.emotion_camera import EmotionCameraWorker
+from moodpet.env_paths import resolve_env_path
 from moodpet.mini_game_panel import MiniGamePanelWindow
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
 from moodpet.realtime_panel import RealtimeMonitorWindow
@@ -51,7 +52,8 @@ class DemoWin(QMainWindow):
         self.last_bubble_emit_seconds = None
         self.last_bubble_reply_text = ""
         self.active_bubble_target_id = "realtime"
-        self.bubble_provider = build_default_bubble_provider(env_path=BASE_DIR / ".env")
+        self.env_path = resolve_env_path(BASE_DIR)
+        self.bubble_provider = build_default_bubble_provider(env_path=self.env_path)
         self.bubble_reply_queue: "queue.Queue" = queue.Queue()
         self.bubble_reply_runner = AsyncBubbleReplyRunner(self.bubble_reply_queue)
         self.bubble_reply_inflight = False
@@ -552,7 +554,14 @@ class DemoWin(QMainWindow):
 
     def open_game_entry(self):
         if self.mini_game_panel is None:
-            self.mini_game_panel = MiniGamePanelWindow(BASE_DIR, parent=None, open_target=self.open_feature_module)
+            self.mini_game_panel = MiniGamePanelWindow(
+                BASE_DIR,
+                parent=None,
+                open_target=self.open_feature_module,
+                emotion_state=self.current_emotion_state,
+            )
+        else:
+            self.mini_game_panel.set_emotion_state(self.current_emotion_state)
         self.mini_game_panel.refresh()
         self.mini_game_panel.show()
         self.mini_game_panel.raise_()

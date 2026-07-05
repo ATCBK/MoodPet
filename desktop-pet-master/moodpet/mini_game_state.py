@@ -50,6 +50,7 @@ class MiniGameState:
     rewards: Sequence[StoryReward]
     interaction_done: bool = False
     selected_choice_id: str = ""
+    emotion_summary: str = ""
 
 
 BRANCH_NODE_OVERRIDES: Dict[str, Dict[int, StoryNode]] = {
@@ -312,3 +313,24 @@ def restart_game(state: MiniGameState | None = None) -> MiniGameState:
 
 def _collect_clue(clues: Sequence[StoryClue], clue_id: str) -> List[StoryClue]:
     return [replace(clue, collected=True) if clue.id == clue_id else clue for clue in clues]
+
+
+def build_story_render_states(state: MiniGameState) -> List[MiniGameState]:
+    states: List[MiniGameState] = []
+    seen = set()
+
+    def add(snapshot: MiniGameState) -> None:
+        key = (snapshot.node_index, snapshot.selected_choice_id, snapshot.interaction_done)
+        if key in seen:
+            return
+        seen.add(key)
+        states.append(snapshot)
+
+    add(state)
+    for choice in state.choices:
+        branch_state = choose_event(state, choice.id)
+        add(branch_state)
+        while branch_state.node_index < len(branch_state.nodes) - 1:
+            branch_state = continue_story(branch_state)
+            add(branch_state)
+    return states

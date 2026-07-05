@@ -31,7 +31,11 @@ class MiniGamePanelTest(unittest.TestCase):
 
     def test_minigame_layout_keeps_only_story_image_and_choices(self):
         app = QApplication.instance() or QApplication(sys.argv)
-        window = MiniGamePanelWindow(Path(__file__).resolve().parents[1])
+        window = MiniGamePanelWindow(
+            Path(__file__).resolve().parents[1],
+            generate_story=False,
+            preload_story_assets=False,
+        )
         window.show()
         app.processEvents()
 

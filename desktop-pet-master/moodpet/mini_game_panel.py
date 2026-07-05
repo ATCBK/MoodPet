@@ -1,5 +1,6 @@
-from pathlib import Path
 import threading
+import queue
+from pathlib import Path
 from typing import Callable, List, Optional, Tuple
 
 from PyQt5.QtCore import QPoint, QRect, QSize, Qt, QTimer
@@ -10,6 +11,7 @@ from moodpet.mini_game_state import (
     MiniGameState,
     available_choices,
     build_default_game,
+    build_story_render_states,
     choose_event,
     collected_count_text,
     complete_interaction,
@@ -18,9 +20,12 @@ from moodpet.mini_game_state import (
     progress_text,
     restart_game,
 )
+from moodpet.emotion import EmotionState, build_emotion_state
+from moodpet.env_paths import resolve_env_path
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
 from moodpet.side_nav import build_pet_sidebar
 from moodpet.seedream_image import SeedreamImageService, build_seedream_image_service
+from moodpet.story_generation import StoryGenerationService, build_story_generation_service
 
 
 INK = "#10151b"
@@ -351,13 +356,22 @@ class MiniGamePanelWindow(QWidget):
         base_dir: Path,
         parent: Optional[QWidget] = None,
         open_target: Optional[Callable[[str], None]] = None,
+        emotion_state: Optional[EmotionState] = None,
+        generate_story: bool = True,
+        preload_story_assets: bool = True,
     ) -> None:
         super().__init__(parent)
         self.base_dir = base_dir
         self.open_target = open_target or (lambda module_id: None)
+        self.emotion_state = emotion_state or build_emotion_state("neutral")
+        self.generate_story = generate_story
+        self.preload_story_assets = preload_story_assets
         self.state = build_default_game()
+        self.initial_story_state = self.state
         self.choice_buttons: List[PixelButton] = []
-        self.choice_image_service: Optional[SeedreamImageService] = build_seedream_image_service(base_dir, base_dir / ".env")
+        self.env_path = resolve_env_path(base_dir)
+        self.choice_image_service: Optional[SeedreamImageService] = build_seedream_image_service(base_dir, self.env_path)
+        self.story_generation_service: StoryGenerationService = build_story_generation_service(base_dir, self.env_path)
         self.choice_image_paths = {}
         self.choice_image_loading = set()
         self.choice_image_errors = {}
@@ -367,6 +381,13 @@ class MiniGamePanelWindow(QWidget):
         self.selected_choice_image_key = ""
         self.selected_choice_image_path: Optional[Path] = None
         self._image_lock = threading.Lock()
+        self.story_loading = self.generate_story
+        self.story_generation_queue: "queue.Queue" = queue.Queue(maxsize=1)
+        self.story_generation_timer = QTimer(self)
+        self.story_generation_timer.timeout.connect(self._poll_story_generation_result)
+        self.story_generation_timer.start(100)
+        self.story_generation_request_id = 0
+        self.story_assets_primed = False
         self.clue_cards: List[QFrame] = []
         self.clue_card_icons: List[QLabel] = []
         self.clue_card_titles: List[QLabel] = []
@@ -380,6 +401,10 @@ class MiniGamePanelWindow(QWidget):
         self.choice_image_timer.timeout.connect(self._refresh_choice_images)
         self.choice_image_timer.start(100)
         self.refresh()
+        if self.generate_story:
+            self._start_story_generation()
+        else:
+            self.set_emotion_state(self.emotion_state)
 
     def _build_ui(self) -> None:
         self._build_chrome()
@@ -723,19 +748,7 @@ class MiniGamePanelWindow(QWidget):
         if self.choice_image_service is None:
             return
         for choice in choices:
-            with self._image_lock:
-                image_key = self._choice_image_key(self.state, choice.id)
-                if image_key in self.choice_image_paths or image_key in self.choice_image_loading:
-                    continue
-                self.choice_image_loading.add(image_key)
-            state_snapshot = self.state
-            thread = threading.Thread(
-                target=self._generate_choice_image,
-                args=(state_snapshot, choice),
-                name=f"MoodPetSeedream-{choice.id}",
-                daemon=True,
-            )
-            thread.start()
+            self._queue_choice_image(self.state, choice)
 
     def _generate_choice_image(self, state: MiniGameState, choice) -> None:
         try:
@@ -761,27 +774,9 @@ class MiniGamePanelWindow(QWidget):
         self._refresh_header_image()
 
     def _prefetch_node_image(self) -> None:
-        if self.choice_image_service is None or not self.state.interaction_done:
+        if self.choice_image_service is None:
             return
-        image_key = self._node_image_key(self.state)
-        cached_path = self.choice_image_service.cached_node_image_path(self.state)
-        if cached_path is not None:
-            with self._image_lock:
-                self.node_image_paths[image_key] = cached_path
-                self.node_image_errors.pop(image_key, None)
-            return
-        with self._image_lock:
-            if image_key in self.node_image_paths or image_key in self.node_image_loading:
-                return
-            self.node_image_loading.add(image_key)
-        state_snapshot = self.state
-        thread = threading.Thread(
-            target=self._generate_node_image,
-            args=(state_snapshot,),
-            name=f"MoodPetSeedreamNode-{current_node(state_snapshot).id}",
-            daemon=True,
-        )
-        thread.start()
+        self._queue_node_image(self.state)
 
     def _generate_node_image(self, state: MiniGameState) -> None:
         image_key = self._node_image_key(state)
@@ -813,6 +808,43 @@ class MiniGamePanelWindow(QWidget):
         else:
             apply_button_icon(button, "story_choice", 24)
 
+    def _prime_story_assets(self) -> None:
+        if self.choice_image_service is None or self.story_assets_primed:
+            return
+        self.story_assets_primed = True
+        for state in build_story_render_states(self.state):
+            self._queue_node_image(state)
+        for choice in self.state.choices:
+            self._queue_choice_image(self.state, choice)
+
+    def _queue_choice_image(self, state: MiniGameState, choice) -> None:
+        with self._image_lock:
+            image_key = self._choice_image_key(state, choice.id)
+            if image_key in self.choice_image_paths or image_key in self.choice_image_loading:
+                return
+            self.choice_image_loading.add(image_key)
+        thread = threading.Thread(
+            target=self._generate_choice_image,
+            args=(state, choice),
+            name=f"MoodPetSeedream-{choice.id}-{state.node_index}",
+            daemon=True,
+        )
+        thread.start()
+
+    def _queue_node_image(self, state: MiniGameState) -> None:
+        with self._image_lock:
+            image_key = self._node_image_key(state)
+            if image_key in self.node_image_paths or image_key in self.node_image_loading:
+                return
+            self.node_image_loading.add(image_key)
+        thread = threading.Thread(
+            target=self._generate_node_image,
+            args=(state,),
+            name=f"MoodPetSeedreamNode-{current_node(state).id}-{state.node_index}",
+            daemon=True,
+        )
+        thread.start()
+
     def _choice_image_key(self, state: MiniGameState, choice_id: str) -> str:
         return f"{state.node_index}:{choice_id}"
 
@@ -842,3 +874,192 @@ class MiniGamePanelWindow(QWidget):
             if path and path.exists():
                 return path
         return None
+
+    def set_emotion_state(self, emotion_state: EmotionState) -> None:
+        self.emotion_state = emotion_state
+        self.story_assets_primed = False
+        self.selected_choice_image_key = ""
+        self.selected_choice_image_path = None
+        if self.generate_story:
+            self._start_story_generation()
+        else:
+            self.initial_story_state = self.story_generation_service.build_local_story(emotion_state)
+            self.state = self.initial_story_state
+            self.story_loading = False
+            self.refresh()
+            if self.preload_story_assets:
+                self._prime_story_assets()
+
+    def refresh(self) -> None:
+        if self.story_loading:
+            self._render_story_loading()
+            return
+        node = current_node(self.state)
+        self.story_title.setText(f"本次故事：{self.state.story_title}")
+        subtitle_text = self.state.subtitle
+        if self.state.emotion_summary:
+            subtitle_text = f"{subtitle_text} · {self.state.emotion_summary}"
+        self.subtitle.setText(subtitle_text)
+        self.progress_label.setText(progress_text(self.state))
+        self.scene.set_caption(node.scene_text)
+        self._prefetch_node_image()
+        self._refresh_header_image()
+        self.node_title.setText(node.title)
+        self.node_prompt.setText(node.prompt)
+        if hasattr(self, "feedback"):
+            self.feedback.setText(node.pet_reply)
+        if hasattr(self, "task_status"):
+            if self.state.node_index >= len(self.state.nodes) - 1:
+                self.task_status.setText("故事已完成")
+            elif self.state.interaction_done:
+                self.task_status.setText("剧情推进中")
+            else:
+                self.task_status.setText("请选择行动")
+
+        choices = available_choices(self.state)
+        for index, button in enumerate(self.choice_buttons):
+            if index < len(choices):
+                choice = choices[index]
+                available = max(0, button.width() - 46)
+                button.setText(button.fontMetrics().elidedText(choice.title, Qt.ElideRight, available))
+                self._apply_choice_button_image(button, choice.id)
+                button.show()
+                try:
+                    button.clicked.disconnect()
+                except TypeError:
+                    pass
+                button.clicked.connect(lambda checked=False, choice_id=choice.id: self._choose(choice_id))
+            else:
+                button.setIcon(QIcon())
+                button.hide()
+        self._prefetch_choice_images(choices)
+
+        if hasattr(self, "clue_title"):
+            self.clue_title.setText(f"已收集线索       {collected_count_text(self.state)}")
+        if hasattr(self, "theme_subject"):
+            self.theme_subject.setText(f"主题：  {self.state.theme_subject}")
+            self.theme_mood.setText(f"氛围：  {self.state.theme_mood}")
+            self.theme_style.setText(f"风格：  {self.state.theme_style}")
+        if hasattr(self, "reward_rows") and self.reward_rows:
+            for index, reward in enumerate(self.state.rewards):
+                self.reward_rows[index].setText(f"{reward.icon}  {reward.label:<8} +{reward.value}")
+            self.reward_rows[3].setText(f"线索记录       {collected_count_text(self.state)}")
+        if hasattr(self, "envelope"):
+            self.envelope.setVisible(not self.state.interaction_done)
+            if not self.state.interaction_done:
+                self.envelope.reset_position()
+                self.interaction_tip.setText("提示：将信纸拖到信封里")
+            else:
+                self.interaction_tip.setText("已归位：信纸安静地躺在信封里")
+
+        if hasattr(self, "continue_button"):
+            self.continue_button.setEnabled(True)
+        if hasattr(self, "inline_continue_button"):
+            self.inline_continue_button.setEnabled(True)
+        if hasattr(self, "restart_button"):
+            self.restart_button.setEnabled(True)
+
+    def _render_story_loading(self) -> None:
+        self.story_title.setText("正在生成剧情")
+        self.subtitle.setText(f"{self.emotion_state.label_zh} · {self.emotion_state.message}")
+        self.progress_label.setText("剧情准备中")
+        self.scene.set_caption("正在根据当前情绪生成更适合你的故事...")
+        self.scene.set_image_path(None)
+        self.thumb.setPixmap(QPixmap())
+        apply_label_icon(self.thumb, "story_stamp", 48, BLUE_STAMP)
+        self.node_title.setText("情绪分析中")
+        self.node_prompt.setText("故事还在生成，请稍等一下。")
+        if hasattr(self, "feedback"):
+            self.feedback.setText("先等一会儿，MoodPet 正在把剧情变成更适合你的样子。")
+        if hasattr(self, "task_status"):
+            self.task_status.setText("剧情生成中，请稍等")
+        if hasattr(self, "continue_button"):
+            self.continue_button.setEnabled(False)
+        if hasattr(self, "inline_continue_button"):
+            self.inline_continue_button.setEnabled(False)
+        if hasattr(self, "restart_button"):
+            self.restart_button.setEnabled(False)
+        if hasattr(self, "back_button"):
+            self.back_button.setEnabled(True)
+        for button in self.choice_buttons:
+            button.hide()
+
+    def _start_story_generation(self) -> None:
+        self.story_generation_request_id += 1
+        request_id = self.story_generation_request_id
+        self.story_loading = True
+        self.refresh()
+        state_snapshot = self.emotion_state
+        thread = threading.Thread(
+            target=self._generate_story,
+            args=(request_id, state_snapshot),
+            name=f"MoodPetStory-{state_snapshot.emotion}-{request_id}",
+            daemon=True,
+        )
+        thread.start()
+
+    def _generate_story(self, request_id: int, emotion_state: EmotionState) -> None:
+        try:
+            state = self.story_generation_service.generate(emotion_state)
+            self.story_generation_queue.put((request_id, True, state))
+        except Exception as exc:
+            self.story_generation_queue.put((request_id, False, str(exc)))
+
+    def _poll_story_generation_result(self) -> None:
+        try:
+            while True:
+                request_id, ok, payload = self.story_generation_queue.get_nowait()
+                if request_id != self.story_generation_request_id:
+                    continue
+                if ok and isinstance(payload, MiniGameState):
+                    self.initial_story_state = payload
+                    self.state = payload
+                else:
+                    self.initial_story_state = self.story_generation_service.build_local_story(self.emotion_state)
+                    self.state = self.initial_story_state
+                self.story_loading = False
+                self.story_assets_primed = False
+                self.selected_choice_image_key = ""
+                self.selected_choice_image_path = None
+                self.refresh()
+                if self.preload_story_assets:
+                    self._prime_story_assets()
+        except queue.Empty:
+            pass
+
+    def _prefetch_choice_images(self, choices) -> None:
+        if self.story_loading or self.choice_image_service is None:
+            return
+        for choice in choices:
+            self._queue_choice_image(self.state, choice)
+
+    def _prefetch_node_image(self) -> None:
+        if self.story_loading or self.choice_image_service is None:
+            return
+        self._queue_node_image(self.state)
+
+    def _refresh_choice_images(self) -> None:
+        if self.story_loading:
+            return
+        choices = available_choices(self.state)
+        for index, choice in enumerate(choices[: len(self.choice_buttons)]):
+            self._apply_choice_button_image(self.choice_buttons[index], choice.id)
+        self._refresh_header_image()
+
+    def _restart(self) -> None:
+        self.state = self.initial_story_state
+        self.selected_choice_image_key = ""
+        self.selected_choice_image_path = None
+        self.story_assets_primed = False
+        self.refresh()
+        if self.preload_story_assets:
+            self._prime_story_assets()
+
+    def _continue_story(self) -> None:
+        if self.story_loading:
+            return
+        if self.state.interaction_done and self.state.node_index < len(self.state.nodes) - 1:
+            self.state = continue_story(self.state)
+        elif not self.state.interaction_done:
+            self._set_feedback("先选择一个行动，故事会沿着这条线索继续。")
+        self.refresh()

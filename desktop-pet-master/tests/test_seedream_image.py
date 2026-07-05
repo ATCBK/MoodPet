@@ -119,18 +119,18 @@ class SeedreamImageTest(unittest.TestCase):
             def read(self):
                 return b'{"error":{"code":"ModelNotOpen","message":"not activated"}}'
 
-        def fake_urlopen(request, timeout):
+        def fake_open(request, timeout):
             raise FakeHTTPError(request.full_url, 404, "Not Found", {}, None)
 
         import moodpet.seedream_image as seedream_image
 
-        original_urlopen = seedream_image.urllib.request.urlopen
-        seedream_image.urllib.request.urlopen = fake_urlopen
+        original_open = seedream_image.open_without_proxy
+        seedream_image.open_without_proxy = fake_open
         try:
             with self.assertRaisesRegex(RuntimeError, "ModelNotOpen"):
                 post_json("https://example.test/images/generations", {}, {}, 1)
         finally:
-            seedream_image.urllib.request.urlopen = original_urlopen
+            seedream_image.open_without_proxy = original_open
 
 
 if __name__ == "__main__":
