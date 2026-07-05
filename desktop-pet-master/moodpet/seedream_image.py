@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Callable, Dict, Mapping, Optional
 
 from moodpet.deepseek_bubble import load_env_file
+from moodpet.http_client import open_without_proxy
 from moodpet.mini_game_state import (
     MiniGameState,
     StoryChoice,
@@ -66,12 +67,15 @@ def post_json(url: str, payload: Dict, headers: Dict[str, str], timeout: float) 
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with open_without_proxy(request, timeout=timeout) as response:
             raw_body = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
         body = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"Seedream request failed: HTTP {exc.code} {body}") from exc
     except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", None)
+        if reason:
+            raise RuntimeError(f"Seedream request failed: {reason}") from exc
         raise RuntimeError("Seedream request failed") from exc
     try:
         decoded = json.loads(raw_body)
@@ -85,9 +89,12 @@ def post_json(url: str, payload: Dict, headers: Dict[str, str], timeout: float) 
 def download_bytes(url: str, headers: Dict[str, str], timeout: float) -> bytes:
     request = urllib.request.Request(url, headers=headers, method="GET")
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with open_without_proxy(request, timeout=timeout) as response:
             return response.read()
     except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", None)
+        if reason:
+            raise RuntimeError(f"Seedream image download failed: {reason}") from exc
         raise RuntimeError("Seedream image download failed") from exc
 
 

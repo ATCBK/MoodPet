@@ -11,6 +11,7 @@ from moodpet.bubble_policy import (
     LocalRuleBubbleProvider,
     ModelBubbleProvider,
 )
+from moodpet.http_client import open_without_proxy
 
 
 DEEPSEEK_CHAT_COMPLETIONS_URL = "https://api.deepseek.com/chat/completions"
@@ -47,9 +48,12 @@ def post_json(url: str, payload: Dict, headers: Dict[str, str], timeout: float) 
     data = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = urllib.request.Request(url, data=data, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
+        with open_without_proxy(request, timeout=timeout) as response:
             raw_body = response.read().decode("utf-8")
     except urllib.error.URLError as exc:
+        reason = getattr(exc, "reason", None)
+        if reason:
+            raise RuntimeError(f"DeepSeek request failed: {reason}") from exc
         raise RuntimeError("DeepSeek request failed") from exc
 
     try:
