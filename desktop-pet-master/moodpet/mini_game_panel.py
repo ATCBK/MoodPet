@@ -539,7 +539,7 @@ class MiniGamePanelWindow(QWidget):
         self.story_title = label(self.header_card, "", (138, 14, 640, 34), 14, 900)
         self.subtitle = label(self.header_card, "", (140, 50, 560, 28), 10, 700)
         self.progress_label = label(self.header_card, "", (140, 84, 100, 24), 10, 800)
-        self.progress_nodes = label(self.header_card, "① 开场 ━ ② 事件 ━ ③ 选择 ━ ④ 线索 ━ ⑤ 结尾", (250, 82, 430, 28), 10, 900)
+        self.progress_nodes = label(self.header_card, "① 开场 ━ ② 事件 ━ ③ 选择 ━ ④ 线索 ━ ⑤ 行动 ━ ⑥ 结尾", (250, 82, 520, 28), 10, 900)
         self.continue_button = PixelButton("继续故事", self.header_card, BLUE, "white")
         self.continue_button.setGeometry(842, 28, 156, 48)
         apply_button_icon(self.continue_button, "story_choice", 24)
@@ -650,7 +650,7 @@ class MiniGamePanelWindow(QWidget):
             if self.state.node_index >= len(self.state.nodes) - 1:
                 self.task_status.setText("故事已完成")
             elif self.state.interaction_done:
-                self.task_status.setText("选择已生效")
+                self.task_status.setText("剧情推进中")
             else:
                 self.task_status.setText("请选择行动")
 
@@ -706,7 +706,7 @@ class MiniGamePanelWindow(QWidget):
         if self.state.interaction_done and self.state.node_index < len(self.state.nodes) - 1:
             self.state = continue_story(self.state)
         elif not self.state.interaction_done:
-            self._set_feedback("先完成轻量互动，把信纸拖回信封里。")
+            self._set_feedback("先选择一个行动，故事会沿着这条线索继续。")
         self.refresh()
 
     def _restart(self) -> None:
