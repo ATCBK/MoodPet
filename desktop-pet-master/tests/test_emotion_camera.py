@@ -8,6 +8,7 @@ from moodpet.emotion_camera import (
     OPENVINO_MODEL_XML_URL,
     default_openvino_model_path,
     face_to_blob,
+    open_camera_capture,
     output_to_scores,
 )
 
@@ -36,6 +37,48 @@ class EmotionCameraTest(unittest.TestCase):
         self.assertEqual(model_path, Path("models") / "emotions-recognition-retail-0003.xml")
         self.assertTrue(OPENVINO_MODEL_XML_URL.endswith(".xml"))
         self.assertTrue(OPENVINO_MODEL_BIN_URL.endswith(".bin"))
+
+    def test_open_camera_capture_releases_failed_backend_before_fallback(self):
+        captures = []
+
+        class FakeCapture:
+            def __init__(self, index, backend):
+                self.index = index
+                self.backend = backend
+                self.released = False
+                captures.append(self)
+
+            def isOpened(self):
+                return self.backend == 0
+
+            def release(self):
+                self.released = True
+
+        capture, selected_index = open_camera_capture(0, capture_factory=FakeCapture, fallback_indices=())
+
+        self.assertIs(capture, captures[1])
+        self.assertEqual(selected_index, 0)
+        self.assertTrue(captures[0].released)
+        self.assertFalse(captures[1].released)
+
+    def test_open_camera_capture_falls_back_to_available_index(self):
+        class FakeCapture:
+            def __init__(self, index, backend):
+                self.index = index
+                self.backend = backend
+                self.released = False
+
+            def isOpened(self):
+                return self.index == 1
+
+            def release(self):
+                self.released = True
+
+        capture, selected_index = open_camera_capture(9, capture_factory=FakeCapture, fallback_indices=(0, 1))
+
+        self.assertIsNotNone(capture)
+        self.assertEqual(capture.index, 1)
+        self.assertEqual(selected_index, 1)
 
 
 if __name__ == "__main__":

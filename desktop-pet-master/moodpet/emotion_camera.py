@@ -6,7 +6,7 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Callable, Dict, Iterable, Optional, Tuple
 
 import cv2
 import numpy as np
@@ -60,6 +60,25 @@ def default_openvino_model_path(model_path: Path) -> Path:
     if model_path.suffix.lower() == ".xml":
         return model_path
     return model_path.parent / f"{OPENVINO_MODEL_NAME}.xml"
+
+
+def open_camera_capture(
+    camera_index: int = 0,
+    capture_factory: Callable[[int, int], cv2.VideoCapture] = cv2.VideoCapture,
+    fallback_indices: Iterable[int] = (0, 1),
+) -> Tuple[Optional[cv2.VideoCapture], Optional[int]]:
+    candidate_indices = []
+    for index in (camera_index, *fallback_indices):
+        if index not in candidate_indices:
+            candidate_indices.append(index)
+
+    for index in candidate_indices:
+        for backend in (cv2.CAP_DSHOW, cv2.CAP_ANY):
+            camera = capture_factory(index, backend)
+            if camera.isOpened():
+                return camera, index
+            camera.release()
+    return None, None
 
 
 def download_model_file(url: str, target_path: Path) -> None:
@@ -157,10 +176,10 @@ class EmotionCameraWorker:
                 self._publish(build_emotion_state("error", message="未找到 OpenCV 人脸检测器。"))
                 return
 
-            camera = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
-            if not camera.isOpened():
-                camera = cv2.VideoCapture(self.camera_index)
-            if not camera.isOpened():
+            camera, selected_index = open_camera_capture(self.camera_index)
+            if camera is not None and selected_index is not None:
+                self.camera_index = selected_index
+            if camera is None or not camera.isOpened():
                 self._publish(build_emotion_state("error", message="无法打开摄像头。"))
                 return
 

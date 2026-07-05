@@ -7,8 +7,10 @@ from PyQt5.QtWidgets import QComboBox, QFrame, QLabel, QPushButton, QWidget
 
 try:
     import cv2
+    from moodpet.emotion_camera import open_camera_capture
 except Exception:  # pragma: no cover - OpenCV availability is environment dependent.
     cv2 = None
+    open_camera_capture = None
 
 from moodpet.emotion import EmotionState
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
@@ -109,13 +111,11 @@ class CameraPreview(QWidget):
     def start_preview(self, camera_index: int = 0) -> None:
         if self.active:
             return
-        if cv2 is None:
+        if cv2 is None or open_camera_capture is None:
             self.image_label.setText("当前环境缺少 OpenCV，无法打开摄像头")
             return
-        self.capture = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
-        if not self.capture.isOpened():
-            self.capture = cv2.VideoCapture(camera_index)
-        if not self.capture.isOpened():
+        self.capture, _ = open_camera_capture(camera_index)
+        if self.capture is None or not self.capture.isOpened():
             self.image_label.setText("未读取到摄像头画面")
             self.capture = None
             return
