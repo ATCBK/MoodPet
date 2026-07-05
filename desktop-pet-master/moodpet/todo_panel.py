@@ -2,11 +2,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from PyQt5.QtCore import QPoint, QSize, Qt
+from PyQt5.QtCore import QPoint, QSize, Qt, QTimer
 from PyQt5.QtGui import QIcon, QMovie
 from PyQt5.QtWidgets import QFrame, QLabel, QLineEdit, QPushButton, QScrollArea, QWidget
 
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
+from moodpet.side_nav import build_pet_sidebar
 from moodpet.todo_state import (
     CATEGORY_COLORS,
     DEFAULT_TODOS,
@@ -78,17 +79,26 @@ def pixel_shadow(parent: QWidget, x: int, y: int, w: int, h: int, radius: int = 
 
 
 class TodoPanelWindow(QWidget):
-    def __init__(self, base_dir: Path, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        base_dir: Path,
+        parent: Optional[QWidget] = None,
+        open_target: Optional[Callable[[str], None]] = None,
+    ) -> None:
         super().__init__(parent)
         self.base_dir = base_dir
+        self.open_target = open_target or (lambda module_id: None)
         self._chrome_dragging = False
         self._chrome_drag_pos = QPoint()
         self.todos: List[TodoItem] = list(DEFAULT_TODOS)
         self.active_tab = "today"
         self.sort_mode = "time"
         self.row_frames: List[QFrame] = []
+        self.focus_remaining_seconds = 0
+        self.focus_timer = QTimer(self)
+        self.focus_timer.timeout.connect(self._tick_focus_timer)
         self.setWindowTitle("MoodPet 待办")
-        self.setFixedSize(1360, 760)
+        self.setFixedSize(1630, 760)
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setStyleSheet(f"background-color: {CREAM};")
         self._build_ui()
@@ -98,6 +108,12 @@ class TodoPanelWindow(QWidget):
         self._build_chrome()
         self._build_left_panel()
         self._build_assistant_panel()
+        self._shift_content_for_sidebar()
+        self.sidebar, self.sidebar_items = build_pet_sidebar(self, "todo", self.open_target)
+
+    def _shift_content_for_sidebar(self) -> None:
+        for child in self.findChildren(QWidget, options=Qt.FindDirectChildrenOnly):
+            child.move(child.x() + 270, child.y())
 
     def _build_chrome(self) -> None:
         top = QFrame(self)
@@ -269,20 +285,29 @@ class TodoPanelWindow(QWidget):
         )
         self.left_subtitle_overlay.raise_()
 
-        self.today_tab = PixelButton("▣  今日任务（4）", self.left_panel, "#fffaf2")
+        self.today_tab = PixelButton("今日任务（4）", self.left_panel, "#fffaf2")
         self.today_tab.setGeometry(18, 118, 244, 52)
+        apply_button_icon(self.today_tab, "todo", 22)
         self.today_tab.clicked.connect(lambda: self._set_tab("today"))
-        self.done_tab = PixelButton("☑  已完成（1）", self.left_panel, "#fffaf2")
+        self.done_tab = PixelButton("已完成（1）", self.left_panel, "#fffaf2")
         self.done_tab.setGeometry(270, 124, 184, 46)
+        apply_button_icon(self.done_tab, "completed", 22)
         self.done_tab.clicked.connect(lambda: self._set_tab("completed"))
-        self.filter_button = PixelButton("▽  筛选", self.left_panel, "#fffaf2")
+        self.filter_button = PixelButton("筛选", self.left_panel, "#fffaf2")
         self.filter_button.setGeometry(628, 124, 112, 40)
+        apply_button_icon(self.filter_button, "filter", 20)
         self.filter_button.clicked.connect(self._cycle_filter)
-        self.sort_button = PixelButton("↕  排序", self.left_panel, "#fffaf2")
+        self.sort_button = PixelButton("排序", self.left_panel, "#fffaf2")
         self.sort_button.setGeometry(756, 124, 104, 40)
+        apply_button_icon(self.sort_button, "sort", 20)
         self.sort_button.clicked.connect(self._cycle_sort)
 
-        self.date_label = make_label(self.left_panel, "", 36, 184, 360, 32, 12, 800)
+        self.date_icon = QLabel("", self.left_panel)
+        self.date_icon.setGeometry(36, 188, 22, 22)
+        self.date_icon.setAlignment(Qt.AlignCenter)
+        self.date_icon.setStyleSheet("background: transparent; border: none;")
+        apply_label_icon(self.date_icon, "calendar", 22)
+        self.date_label = make_label(self.left_panel, "", 64, 184, 360, 32, 12, 800)
 
         self.list_panel = QScrollArea(self.left_panel)
         self.list_panel.setGeometry(28, 222, 826, 250)
@@ -407,6 +432,11 @@ class TodoPanelWindow(QWidget):
             "QPushButton:pressed { padding-left: 7px; padding-top: 6px; }"
         )
         self.focus_button.clicked.connect(self._focus_done)
+        self.focus_time_label = make_label(recommend, "25:00", 246, 8, 92, 24, 11, 900)
+        self.focus_time_label.setAlignment(Qt.AlignCenter)
+        self.focus_time_label.setStyleSheet(
+            "color: #0b735e; border: none; font-family: 'Microsoft YaHei'; font-size: 11pt; font-weight: 900;"
+        )
         for child in recommend.findChildren(QLabel):
             geom = child.geometry()
             if geom.x() == 18 and geom.y() == 2:
@@ -448,9 +478,11 @@ class TodoPanelWindow(QWidget):
             "border-right: 4px solid #d0a06d; border-bottom: 4px solid #d0a06d; border-radius: 8px;"
         )
 
-        check = QPushButton("✓" if item.completed else "", row)
+        check = QPushButton("", row)
         check.setGeometry(18, 14, 32, 32)
         check.setCursor(Qt.PointingHandCursor)
+        if item.completed:
+            apply_button_icon(check, "completed", 20, "white")
         check.setStyleSheet(
             "QPushButton { background-color: "
             + (MINT if item.completed else "#fffaf2")
@@ -478,9 +510,10 @@ class TodoPanelWindow(QWidget):
         status_label = make_label(row, status, 578, 12, 178, 32, 9, 700)
         status_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
-        star = QPushButton("★" if item.starred else "☆", row)
+        star = QPushButton("", row)
         star.setGeometry(780, 12, 32, 34)
         star.setCursor(Qt.PointingHandCursor)
+        apply_button_icon(star, "star", 24, GOLD if item.starred else "#d0935f")
         star.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {GOLD if item.starred else '#d0935f'};"
             "border: none; font-family: 'Microsoft YaHei'; font-size: 19pt; font-weight: 900; }}"
@@ -516,8 +549,25 @@ class TodoPanelWindow(QWidget):
         self.refresh()
 
     def _focus_done(self) -> None:
-        self.input.setText("番茄钟专注 25 分钟")
-        self._add_task()
+        self.focus_remaining_seconds = 25 * 60
+        self._update_focus_timer_label()
+        self.focus_button.setText("专注中")
+        self.focus_button.setEnabled(False)
+        self.focus_timer.start(1000)
+
+    def _tick_focus_timer(self) -> None:
+        if self.focus_remaining_seconds > 0:
+            self.focus_remaining_seconds -= 1
+        self._update_focus_timer_label()
+        if self.focus_remaining_seconds <= 0:
+            self.focus_timer.stop()
+            self.focus_button.setText("开始专注")
+            self.focus_button.setEnabled(True)
+            self.bubble.setText("番茄钟完成啦，给自己一点奖励吧 ✨")
+
+    def _update_focus_timer_label(self) -> None:
+        minutes, seconds = divmod(max(0, self.focus_remaining_seconds), 60)
+        self.focus_time_label.setText(f"{minutes:02d}:{seconds:02d}")
 
     def refresh(self) -> None:
         for frame in self.row_frames:
@@ -528,12 +578,22 @@ class TodoPanelWindow(QWidget):
         done_count = sum(1 for item in self.todos if item.completed)
         total_count = len(self.todos)
         done_visible = sum(1 for item in self.todos if item.completed)
-        self.today_tab.setText(f"▣  今日任务（{total_count}）")
-        self.done_tab.setText(f"☑  已完成（{done_visible}）")
+        self.today_tab.setText(f"今日任务（{total_count}）")
+        self.done_tab.setText(f"已完成（{done_visible}）")
+        apply_button_icon(self.today_tab, "todo", 22)
+        apply_button_icon(self.done_tab, "completed", 22)
         self.progress_text.setText(completion_text(self.todos))
         self.progress_fill.setFixedWidth(max(0, min(172, int(172 * completion_ratio(self.todos)))))
-        self.date_label.setText("▦  " + today_label())
-        self.filter_button.setText({"time": "▽  筛选", "category": "▤  分类", "starred": "★  星标"}[self.sort_mode])
+        self.date_label.setText(today_label())
+        filter_specs = {
+            "time": ("筛选", "filter"),
+            "category": ("分类", "sort"),
+            "starred": ("星标", "star"),
+        }
+        filter_text, filter_icon = filter_specs[self.sort_mode]
+        self.filter_button.setText(filter_text)
+        apply_button_icon(self.filter_button, filter_icon, 20)
+        apply_button_icon(self.sort_button, "sort", 20)
         self._layout_tabs()
 
         self.today_tab.setStyleSheet(self._tab_style(self.active_tab == "today"))

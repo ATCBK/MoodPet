@@ -23,15 +23,31 @@ FERPLUS_LABELS = [
     "contempt",
 ]
 
-FERPLUS_TO_MOODPET = {
+OPENVINO_EMOTION_LABELS = [
+    "neutral",
+    "happy",
+    "sad",
+    "surprise",
+    "anger",
+]
+
+OPENVINO_TO_MOODPET = {
     "neutral": "neutral",
     "happy": "happy",
     "surprise": "surprise",
     "sad": "sad",
-    "angry": "angry",
-    "disgust": "disgust",
-    "fear": "fear",
-    "contempt": "disgust",
+    "anger": "angry",
+}
+
+FERPLUS_TO_MOODPET = {
+    "neutral": "neutral",
+    "happy": "happy",
+    "surprise": "happy",
+    "sad": "sad",
+    "angry": "sad",
+    "disgust": "sad",
+    "fear": "sad",
+    "contempt": "sad",
 }
 
 EMOTION_ZH = {
@@ -118,6 +134,10 @@ def best_emotion(scores: Dict[str, float]) -> EmotionState:
 
 
 def best_ferplus_emotion(scores: Dict[str, float]) -> EmotionState:
+    return best_openvino_emotion(scores)
+
+
+def best_openvino_emotion(scores: Dict[str, float]) -> EmotionState:
     if not scores:
         return build_emotion_state("unknown", 0.0, False)
 
@@ -125,5 +145,5 @@ def best_ferplus_emotion(scores: Dict[str, float]) -> EmotionState:
         ((key.lower(), float(value)) for key, value in scores.items()),
         key=lambda item: item[1],
     )
-    moodpet_emotion = FERPLUS_TO_MOODPET.get(raw_emotion, "unknown")
+    moodpet_emotion = OPENVINO_TO_MOODPET.get(raw_emotion, "unknown")
     return build_emotion_state(moodpet_emotion, score, True)

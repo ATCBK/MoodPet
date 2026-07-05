@@ -5,12 +5,12 @@ from moodpet.emotion import EmotionState
 
 
 FREQUENCY_COOLDOWN_SECONDS = {
-    "high": 60,
-    "medium": 180,
-    "low": 600,
+    "high": 5,
+    "medium": 5,
+    "low": 10,
 }
 
-DO_NOT_DISTURB_MIN_SECONDS = 300
+DO_NOT_DISTURB_MIN_SECONDS = 5
 MAX_BUBBLE_LENGTH = 36
 DEFAULT_REPLY = "我在旁边陪你，先做一步就好。"
 ALLOWED_TARGET_IDS = {"realtime", "todo", "games", "settings"}

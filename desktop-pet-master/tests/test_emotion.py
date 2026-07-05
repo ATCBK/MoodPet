@@ -1,6 +1,6 @@
 import unittest
 
-from moodpet.emotion import best_emotion, best_ferplus_emotion, build_emotion_state, emotion_to_zh
+from moodpet.emotion import best_emotion, best_openvino_emotion, build_emotion_state, emotion_to_zh
 
 
 class EmotionMappingTest(unittest.TestCase):
@@ -33,11 +33,25 @@ class EmotionMappingTest(unittest.TestCase):
         self.assertEqual(state.label_zh, "平静")
         self.assertEqual(state.confidence, 0.65)
 
-    def test_maps_ferplus_contempt_to_chinese_disgust_state(self):
-        state = best_ferplus_emotion({"neutral": 0.1, "contempt": 0.8})
+    def test_openvino_keeps_clear_happy_expression(self):
+        state = best_openvino_emotion({"happy": 0.65, "sad": 0.14, "neutral": 0.12})
 
-        self.assertEqual(state.emotion, "disgust")
-        self.assertEqual(state.label_zh, "厌恶")
+        self.assertEqual(state.emotion, "happy")
+
+    def test_openvino_keeps_surprise_expression(self):
+        state = best_openvino_emotion({"surprise": 0.7, "neutral": 0.2})
+
+        self.assertEqual(state.emotion, "surprise")
+
+    def test_openvino_maps_anger_to_angry_state(self):
+        state = best_openvino_emotion({"anger": 0.5, "neutral": 0.3})
+
+        self.assertEqual(state.emotion, "angry")
+
+    def test_openvino_keeps_neutral_when_neutral_leads(self):
+        state = best_openvino_emotion({"neutral": 0.74, "sad": 0.21, "happy": 0.02})
+
+        self.assertEqual(state.emotion, "neutral")
 
 
 if __name__ == "__main__":

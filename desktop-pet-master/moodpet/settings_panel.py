@@ -7,6 +7,7 @@ from PyQt5.QtGui import QFont, QMovie
 from PyQt5.QtWidgets import QFrame, QLabel, QPushButton, QSlider, QWidget
 
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
+from moodpet.side_nav import build_pet_sidebar
 from moodpet.settings_state import (
     FREQUENCY_OPTIONS,
     JUMP_TARGET_OPTIONS,
@@ -156,14 +157,20 @@ class SettingsPanelWindow(QWidget):
         self.open_target = open_target
         self.state = SettingsState(camera_enabled=get_camera_enabled())
         self.setWindowTitle("主动气泡交互机制")
-        self.setFixedSize(540, 924)
+        self.setFixedSize(812, 924)
         self.setStyleSheet(f"background-color: {CREAM};")
         self._build_ui()
         self.refresh()
 
     def _build_ui(self) -> None:
+        self.sidebar, self.sidebar_items = build_pet_sidebar(
+            self,
+            "settings",
+            self.open_target,
+            geometry=(8, 8, 260, 908),
+        )
         self.shell = QFrame(self)
-        self.shell.setGeometry(8, 8, 524, 908)
+        self.shell.setGeometry(280, 8, 524, 908)
         self.shell.setStyleSheet(
             f"QFrame {{"
             f"background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {GLOW}, stop:0.08 {CREAM}, stop:1 {CREAM});"

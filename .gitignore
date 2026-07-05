@@ -3,3 +3,5 @@ desktop-pet-master/models/
 desktop-pet-master/logs/
 desktop-pet-master/__pycache__/
 desktop-pet-master/**/__pycache__/
+desktop-pet-master/.env
+desktop-pet-master/generated_images/

@@ -1,5 +1,7 @@
 import math
 import queue
+import shutil
+import ssl
 import threading
 import time
 import urllib.request
@@ -9,12 +11,17 @@ from typing import Dict, Optional
 import cv2
 import numpy as np
 
-from moodpet.emotion import FERPLUS_LABELS, EmotionState, best_ferplus_emotion, build_emotion_state
+from moodpet.emotion import OPENVINO_EMOTION_LABELS, EmotionState, best_openvino_emotion, build_emotion_state
 
 
-MODEL_URL = (
-    "https://github.com/spmallick/learnopencv/raw/master/"
-    "Facial-Emotion-Recognition/emotion-ferplus-8.onnx"
+OPENVINO_MODEL_NAME = "emotions-recognition-retail-0003"
+OPENVINO_MODEL_XML_URL = (
+    "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/"
+    "emotions-recognition-retail-0003/FP32/emotions-recognition-retail-0003.xml"
+)
+OPENVINO_MODEL_BIN_URL = (
+    "https://storage.openvinotoolkit.org/repositories/open_model_zoo/2023.0/models_bin/1/"
+    "emotions-recognition-retail-0003/FP32/emotions-recognition-retail-0003.bin"
 )
 
 
@@ -26,20 +33,77 @@ def softmax(values: np.ndarray) -> np.ndarray:
 
 
 def output_to_scores(output: np.ndarray) -> Dict[str, float]:
-    probabilities = softmax(output)
-    usable_count = min(len(FERPLUS_LABELS), len(probabilities))
+    probabilities = output.astype("float32").reshape(-1)
+    total = float(np.sum(probabilities))
+    if total <= 0 or not math.isfinite(total):
+        probabilities = softmax(output)
+    usable_count = min(len(OPENVINO_EMOTION_LABELS), len(probabilities))
     return {
-        FERPLUS_LABELS[index]: float(probabilities[index])
+        OPENVINO_EMOTION_LABELS[index]: float(probabilities[index])
         for index in range(usable_count)
         if math.isfinite(float(probabilities[index]))
     }
 
 
-def ensure_model(model_path: Path) -> None:
-    model_path.parent.mkdir(parents=True, exist_ok=True)
-    if model_path.exists() and model_path.stat().st_size > 0:
+def face_to_blob(face: np.ndarray) -> np.ndarray:
+    face = cv2.resize(face, (64, 64))
+    return cv2.dnn.blobFromImage(
+        face,
+        scalefactor=1.0,
+        size=(64, 64),
+        mean=(0, 0, 0),
+        swapRB=False,
+    )
+
+
+def default_openvino_model_path(model_path: Path) -> Path:
+    if model_path.suffix.lower() == ".xml":
+        return model_path
+    return model_path.parent / f"{OPENVINO_MODEL_NAME}.xml"
+
+
+def download_model_file(url: str, target_path: Path) -> None:
+    try:
+        urllib.request.urlretrieve(url, target_path)
         return
-    urllib.request.urlretrieve(MODEL_URL, model_path)
+    except Exception:
+        pass
+
+    context = ssl._create_unverified_context()
+    with urllib.request.urlopen(url, context=context) as response, target_path.open("wb") as target:
+        shutil.copyfileobj(response, target)
+
+
+def ensure_model(model_path: Path) -> None:
+    model_path = default_openvino_model_path(model_path)
+    model_path.parent.mkdir(parents=True, exist_ok=True)
+    bin_path = model_path.with_suffix(".bin")
+    if not model_path.exists() or model_path.stat().st_size == 0:
+        download_model_file(OPENVINO_MODEL_XML_URL, model_path)
+    if not bin_path.exists() or bin_path.stat().st_size == 0:
+        download_model_file(OPENVINO_MODEL_BIN_URL, bin_path)
+
+
+class OpenVINOEmotionModel:
+    def __init__(self, model_path: Path) -> None:
+        try:
+            from openvino import Core
+        except ModuleNotFoundError as exc:
+            raise RuntimeError("未安装 OpenVINO，请先安装 openvino 依赖。") from exc
+
+        core = Core()
+        model = core.read_model(str(model_path))
+        self.compiled_model = core.compile_model(model, "CPU")
+        self.input_layer = self.compiled_model.input(0)
+        self.output_layer = self.compiled_model.output(0)
+
+    def predict(self, blob: np.ndarray) -> np.ndarray:
+        return self.compiled_model([blob])[self.output_layer]
+
+
+def load_emotion_model(model_path: Path) -> OpenVINOEmotionModel:
+    model_path = default_openvino_model_path(model_path)
+    return OpenVINOEmotionModel(model_path)
 
 
 class EmotionCameraWorker:
@@ -86,7 +150,7 @@ class EmotionCameraWorker:
     def _run(self) -> None:
         try:
             ensure_model(self.model_path)
-            net = cv2.dnn.readNetFromONNX(str(self.model_path))
+            net = load_emotion_model(self.model_path)
             cascade_path = Path(cv2.data.haarcascades) / "haarcascade_frontalface_default.xml"
             face_detector = cv2.CascadeClassifier(str(cascade_path))
             if face_detector.empty():
@@ -111,7 +175,7 @@ class EmotionCameraWorker:
         self,
         camera: cv2.VideoCapture,
         face_detector: cv2.CascadeClassifier,
-        net: cv2.dnn_Net,
+        net: OpenVINOEmotionModel,
     ) -> None:
         while not self._stop_event.is_set():
             ok, frame = camera.read()
@@ -128,7 +192,7 @@ class EmotionCameraWorker:
         self,
         frame: np.ndarray,
         face_detector: cv2.CascadeClassifier,
-        net: cv2.dnn_Net,
+        net: OpenVINOEmotionModel,
     ) -> EmotionState:
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         faces = face_detector.detectMultiScale(
@@ -141,10 +205,8 @@ class EmotionCameraWorker:
             return build_emotion_state("away", 0.0, face_detected=False)
 
         x, y, w, h = max(faces, key=lambda face: face[2] * face[3])
-        face = gray[y : y + h, x : x + w]
-        face = cv2.resize(face, (64, 64))
-        blob = cv2.dnn.blobFromImage(face, scalefactor=1.0, size=(64, 64), mean=(0,), swapRB=False)
-        net.setInput(blob)
-        output = net.forward()
+        face = frame[y : y + h, x : x + w]
+        blob = face_to_blob(face)
+        output = net.predict(blob)
         scores = output_to_scores(output)
-        return best_ferplus_emotion(scores)
+        return best_openvino_emotion(scores)

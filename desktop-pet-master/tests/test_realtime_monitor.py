@@ -105,17 +105,19 @@ class RealtimeMonitorTest(unittest.TestCase):
 
         sidebar_texts = {label.text() for label in window.sidebar.findChildren(QLabel)}
         self.assertIn("MoodPet", sidebar_texts)
-        self.assertTrue(any("● 在线" in text for text in sidebar_texts))
+        self.assertFalse(any("● 在线" in text for text in sidebar_texts))
+        self.assertFalse(any("我在看着你哦" in text for text in sidebar_texts))
         brand_label = next(label for label in window.sidebar.findChildren(QLabel) if label.text() == "MoodPet")
         self.assertTrue(brand_label.alignment() & Qt.AlignLeft)
+        self.assertLessEqual(window.sidebar_items[0][0].y(), 112)
         for item, icon_label, text_label in window.sidebar_items:
-            self.assertEqual(icon_label.width(), 24)
-            self.assertEqual(icon_label.height(), 24)
+            self.assertEqual(icon_label.width(), 30)
+            self.assertEqual(icon_label.height(), 30)
             self.assertTrue(text_label.alignment() & Qt.AlignLeft)
 
         todo_label = next(label for label in window.sidebar.findChildren(QLabel) if label.text().endswith("待办"))
         self.assertTrue(todo_label.alignment() & Qt.AlignLeft)
-        self.assertGreaterEqual(todo_label.x(), 42)
+        self.assertGreaterEqual(todo_label.x(), 54)
         QTest.mouseClick(todo_label, Qt.LeftButton, pos=todo_label.rect().center())
 
         self.assertEqual(opened, ["todo"])

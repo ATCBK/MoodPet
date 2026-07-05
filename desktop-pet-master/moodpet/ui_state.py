@@ -13,18 +13,18 @@ ACTIVE_BUBBLES = {
     "disgust": "状态不太舒服，换个轻松任务缓一缓吧。",
     "fear": "别急，我陪你一步一步来。",
     "away": "暂时没有看到你，回来后我继续陪你。",
-    "unknown": "后台识别中，我正在观察你的状态。",
-    "disabled": "摄像头已关闭，右键可以开启后台识别。",
-    "error": "识别遇到问题，桌宠和导航仍然可用。",
+    "unknown": "状态感知中，我会轻轻陪着你。",
+    "disabled": "状态感知未开启，右键可以开启陪伴感知。",
+    "error": "状态感知暂不可用，可能需要检查权限或占用。",
 }
 
 
 def camera_status_text(enabled: bool, emotion: str = "") -> str:
     if not enabled:
-        return "摄像头：已关闭"
+        return "状态感知：未开启"
     if emotion == "error":
-        return "摄像头：识别异常"
-    return "摄像头：后台识别中"
+        return "状态感知：暂不可用"
+    return "状态感知中"
 
 
 def pet_bubble_text(state: EmotionState) -> str:
@@ -52,8 +52,8 @@ def build_navigation_groups(menu_config: Mapping[str, Sequence[Dict]]) -> List[D
 
 def build_feature_modules(menu_config: Mapping[str, Sequence[Dict]], emotion_enabled: bool = False) -> List[Dict]:
     action_count = sum(len(items) for items in menu_config.values())
-    camera_title = "关闭识别" if emotion_enabled else "开启识别"
-    camera_description = "摄像头正在后台陪伴" if emotion_enabled else "启动摄像头情绪识别"
+    camera_title = "关闭感知" if emotion_enabled else "开启感知"
+    camera_description = "状态感知正在轻量运行" if emotion_enabled else "开启本地状态感知"
 
     return [
         {

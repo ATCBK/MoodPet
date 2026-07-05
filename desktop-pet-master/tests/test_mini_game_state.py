@@ -46,12 +46,19 @@ class MiniGameStateTest(unittest.TestCase):
         self.assertTrue(next_state.interaction_done)
         self.assertEqual(next_state.node_index, 3)
         self.assertEqual(collected_count_text(next_state), "5 / 5")
-        self.assertEqual(current_node(next_state).title, "封好的回信")
+        self.assertEqual(current_node(next_state).title, "选择后的回声")
 
     def test_available_choices_are_empty_after_interaction_is_done(self):
         state = complete_interaction(build_default_game())
 
         self.assertEqual(available_choices(state), [])
+
+    def test_choose_event_finishes_choice_interaction_without_drag_step(self):
+        state = choose_event(build_default_game(), "pick_letter")
+
+        self.assertTrue(state.interaction_done)
+        self.assertEqual(available_choices(state), [])
+        self.assertEqual(current_node(state).title, "选择后的回声")
 
     def test_restart_restores_initial_story_state(self):
         state = complete_interaction(choose_event(build_default_game(), "clock"))

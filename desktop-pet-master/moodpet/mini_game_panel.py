@@ -1,8 +1,9 @@
 from pathlib import Path
-from typing import List, Optional, Tuple
+import threading
+from typing import Callable, List, Optional, Tuple
 
-from PyQt5.QtCore import QPoint, QRect, QSize, Qt
-from PyQt5.QtGui import QColor, QFont, QMovie, QPainter, QPainterPath, QPen, QPixmap
+from PyQt5.QtCore import QPoint, QRect, QSize, Qt, QTimer
+from PyQt5.QtGui import QColor, QFont, QIcon, QMovie, QPainter, QPainterPath, QPen, QPixmap
 from PyQt5.QtWidgets import QFrame, QLabel, QPushButton, QWidget
 
 from moodpet.mini_game_state import (
@@ -12,11 +13,14 @@ from moodpet.mini_game_state import (
     choose_event,
     collected_count_text,
     complete_interaction,
+    continue_story,
     current_node,
     progress_text,
     restart_game,
 )
 from moodpet.pixel_icons import apply_button_icon, apply_label_icon
+from moodpet.side_nav import build_pet_sidebar
+from moodpet.seedream_image import SeedreamImageService, build_seedream_image_service
 
 
 INK = "#10151b"
@@ -259,9 +263,16 @@ class PostalScene(QWidget):
     def __init__(self, parent: QWidget) -> None:
         super().__init__(parent)
         self.caption = ""
+        self.image_path: Optional[Path] = None
+        self.scene_pixmap = QPixmap()
 
     def set_caption(self, caption: str) -> None:
         self.caption = caption
+        self.update()
+
+    def set_image_path(self, image_path: Optional[Path]) -> None:
+        self.image_path = image_path
+        self.scene_pixmap = QPixmap(str(image_path)) if image_path else QPixmap()
         self.update()
 
     def paintEvent(self, event) -> None:
@@ -270,39 +281,19 @@ class PostalScene(QWidget):
         rect = self.rect().adjusted(2, 2, -2, -2)
         painter.fillRect(rect, QColor("#20334c"))
 
-        for y, color in [(0, "#8c5c80"), (44, "#d78a77"), (88, "#f3b27a"), (132, "#644e69")]:
-            painter.fillRect(rect.left(), rect.top() + y, rect.width(), 48, QColor(color))
-
-        painter.fillRect(rect.left(), rect.top() + 156, rect.width(), rect.height() - 156, QColor("#2a273a"))
-        painter.fillRect(rect.left() + 26, rect.top() + 44, 220, 182, QColor("#17263a"))
-        painter.fillRect(rect.left() + 38, rect.top() + 56, 196, 158, QColor("#f0a36d"))
-        painter.fillRect(rect.left() + 44, rect.top() + 62, 184, 146, QColor("#6c6a95"))
-
-        painter.setPen(QPen(QColor("#1a1724"), 5))
-        painter.drawLine(rect.left() + 132, rect.top() + 54, rect.left() + 132, rect.top() + 214)
-        painter.drawLine(rect.left() + 42, rect.top() + 134, rect.left() + 232, rect.top() + 134)
-
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor("#503522"))
-        painter.drawRect(rect.left() + 270, rect.top() + 122, 180, 194)
-        painter.drawRect(rect.left() + 292, rect.top() + 82, 128, 42)
-        painter.setBrush(QColor("#8c623b"))
-        for row in range(4):
-            for col in range(3):
-                painter.drawRect(rect.left() + 288 + col * 48, rect.top() + 146 + row * 38, 36, 24)
-
-        painter.setBrush(QColor("#ffd38a"))
-        painter.drawEllipse(rect.left() + 262, rect.top() + 38, 58, 58)
-        painter.setBrush(QColor("#201920"))
-        painter.drawRect(rect.left() + 288, rect.top() + 8, 7, 42)
-
-        painter.setBrush(QColor("#6b452c"))
-        painter.drawRect(rect.left() + 12, rect.bottom() - 92, rect.width() - 24, 70)
-        painter.setBrush(QColor("#f7e6c7"))
-        painter.drawRect(rect.left() + 154, rect.bottom() - 78, 98, 54)
-        painter.setPen(QPen(QColor("#c77a54"), 2))
-        painter.drawLine(rect.left() + 170, rect.bottom() - 62, rect.left() + 232, rect.bottom() - 56)
-        painter.drawLine(rect.left() + 170, rect.bottom() - 48, rect.left() + 216, rect.bottom() - 42)
+        if not self.scene_pixmap.isNull():
+            image_rect = QRect(rect.left(), rect.top(), rect.width(), max(0, rect.height() - 92))
+            scaled = self.scene_pixmap.scaled(image_rect.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            source_x = max(0, (scaled.width() - image_rect.width()) // 2)
+            source_y = max(0, (scaled.height() - image_rect.height()) // 2)
+            painter.drawPixmap(image_rect, scaled, QRect(source_x, source_y, image_rect.width(), image_rect.height()))
+        else:
+            for y, color in [(0, "#8c5c80"), (44, "#d78a77"), (88, "#f3b27a"), (132, "#644e69")]:
+                painter.fillRect(rect.left(), rect.top() + y, rect.width(), 48, QColor(color))
+            painter.fillRect(rect.left(), rect.top() + 156, rect.width(), rect.height() - 156, QColor("#2a273a"))
+            painter.fillRect(rect.left() + 26, rect.top() + 44, 220, 182, QColor("#17263a"))
+            painter.fillRect(rect.left() + 38, rect.top() + 56, 196, 158, QColor("#f0a36d"))
+            painter.fillRect(rect.left() + 44, rect.top() + 62, 184, 146, QColor("#6c6a95"))
 
         painter.setPen(QPen(QColor("#071927"), 4))
         painter.drawRect(rect)
@@ -355,11 +346,27 @@ class DraggableEnvelope(QLabel):
 
 
 class MiniGamePanelWindow(QWidget):
-    def __init__(self, base_dir: Path, parent: Optional[QWidget] = None) -> None:
+    def __init__(
+        self,
+        base_dir: Path,
+        parent: Optional[QWidget] = None,
+        open_target: Optional[Callable[[str], None]] = None,
+    ) -> None:
         super().__init__(parent)
         self.base_dir = base_dir
+        self.open_target = open_target or (lambda module_id: None)
         self.state = build_default_game()
         self.choice_buttons: List[PixelButton] = []
+        self.choice_image_service: Optional[SeedreamImageService] = build_seedream_image_service(base_dir, base_dir / ".env")
+        self.choice_image_paths = {}
+        self.choice_image_loading = set()
+        self.choice_image_errors = {}
+        self.node_image_paths = {}
+        self.node_image_loading = set()
+        self.node_image_errors = {}
+        self.selected_choice_image_key = ""
+        self.selected_choice_image_path: Optional[Path] = None
+        self._image_lock = threading.Lock()
         self.clue_cards: List[QFrame] = []
         self.clue_card_icons: List[QLabel] = []
         self.clue_card_titles: List[QLabel] = []
@@ -369,13 +376,16 @@ class MiniGamePanelWindow(QWidget):
         self.setStyleSheet(f"background-color: {CREAM};")
         self._build_ui()
         self._style_top_chrome()
+        self.choice_image_timer = QTimer(self)
+        self.choice_image_timer.timeout.connect(self._refresh_choice_images)
+        self.choice_image_timer.start(100)
         self.refresh()
 
     def _build_ui(self) -> None:
         self._build_chrome()
         self._build_sidebar()
         self._build_story_area()
-        self._build_right_panel()
+        self._build_task_controls()
 
     def _build_chrome(self) -> None:
         top = QFrame(self)
@@ -453,6 +463,14 @@ class MiniGamePanelWindow(QWidget):
             label(crumb_cover, "功能导航  >  小游戏", (42, 2, 360, 32), 15, 900)
 
     def _build_sidebar(self) -> None:
+        self.sidebar, self.sidebar_items = build_pet_sidebar(
+            self,
+            "games",
+            self.open_target,
+            geometry=(10, 64, 250, 686),
+        )
+        return
+
         self.side_shadow = card_shadow(self, 10, 64, 250, 686, 12, "#a07952")
         side = QFrame(self)
         side.setGeometry(10, 64, 250, 686)
@@ -504,9 +522,9 @@ class MiniGamePanelWindow(QWidget):
         )
 
     def _build_story_area(self) -> None:
-        self.header_shadow = card_shadow(self, 282, 118, 740, 146, 10, "#a9845d")
+        self.header_shadow = card_shadow(self, 282, 118, 1048, 146, 10, "#a9845d")
         self.header_card = QFrame(self)
-        self.header_card.setGeometry(282, 118, 740, 146)
+        self.header_card.setGeometry(282, 118, 1048, 146)
         self.header_card.setStyleSheet(raised_panel_style(PANEL, SOFT_LINE, 10, "#b48b62"))
         self.thumb = QLabel("", self.header_card)
         self.thumb.setGeometry(22, 22, 88, 88)
@@ -518,120 +536,30 @@ class MiniGamePanelWindow(QWidget):
             "border-right: 4px solid #183c76; border-bottom: 4px solid #183c76;"
             "border-radius: 8px; font: 900 24pt 'Microsoft YaHei';"
         )
-        self.story_title = label(self.header_card, "", (138, 14, 410, 34), 14, 900)
-        self.subtitle = label(self.header_card, "", (140, 50, 390, 28), 10, 700)
+        self.story_title = label(self.header_card, "", (138, 14, 640, 34), 14, 900)
+        self.subtitle = label(self.header_card, "", (140, 50, 560, 28), 10, 700)
         self.progress_label = label(self.header_card, "", (140, 84, 100, 24), 10, 800)
         self.progress_nodes = label(self.header_card, "① 开场 ━ ② 事件 ━ ③ 选择 ━ ④ 线索 ━ ⑤ 结尾", (250, 82, 430, 28), 10, 900)
         self.continue_button = PixelButton("继续故事", self.header_card, BLUE, "white")
-        self.continue_button.setGeometry(536, 28, 156, 48)
+        self.continue_button.setGeometry(842, 28, 156, 48)
         apply_button_icon(self.continue_button, "story_choice", 24)
         self.continue_button.clicked.connect(self._continue_story)
 
-        self.scene_shadow = card_shadow(self, 282, 276, 374, 306, 10, "#a9845d")
+        self.scene_shadow = card_shadow(self, 282, 276, 640, 430, 10, "#a9845d")
         self.scene = PostalScene(self)
-        self.scene.setGeometry(282, 276, 374, 306)
+        self.scene.setGeometry(282, 276, 640, 430)
 
-        self.event_shadow = card_shadow(self, 668, 276, 354, 236, 10, "#a9845d")
+        self.event_shadow = card_shadow(self, 942, 276, 388, 430, 10, "#a9845d")
         self.event_panel = QFrame(self)
-        self.event_panel.setGeometry(668, 276, 354, 236)
+        self.event_panel.setGeometry(942, 276, 388, 430)
         self.event_panel.setStyleSheet(raised_panel_style(PANEL, SOFT_LINE, 10, "#b48b62"))
-        self.node_title = label(self.event_panel, "", (22, 12, 250, 28), 11, 900)
-        self.node_prompt = label(self.event_panel, "", (22, 40, 310, 54), 10, 700)
+        self.node_title = label(self.event_panel, "", (24, 18, 310, 32), 12, 900)
+        self.node_prompt = label(self.event_panel, "", (24, 58, 330, 78), 11, 700)
         for index in range(3):
             button = PixelButton("", self.event_panel, "#fffaf2")
-            button.setGeometry(28, 98 + index * 42, 298, 34)
+            button.setGeometry(26, 156 + index * 70, 336, 54)
+            button.setIconSize(QSize(42, 42))
             self.choice_buttons.append(button)
-
-        self.clue_shadow = card_shadow(self, 282, 596, 300, 126, 10, "#a9845d")
-        self.clue_panel = QFrame(self)
-        self.clue_panel.setGeometry(282, 596, 300, 126)
-        self.clue_panel.setStyleSheet(raised_panel_style(PANEL, SOFT_LINE, 10, "#b48b62"))
-        self.clue_title = label(self.clue_panel, "", (18, 8, 180, 28), 11, 900)
-        self.clue_cards = []
-        self.clue_card_icons: List[QLabel] = []
-        self.clue_card_titles: List[QLabel] = []
-        for index in range(3):
-            x = 18 + index * 92
-            shadow = QFrame(self.clue_panel)
-            shadow.setGeometry(x + 4, 46 + 4, 84, 66)
-            shadow.setStyleSheet("background-color: #c19b6f; border: none; border-radius: 8px;")
-            card = QFrame(self.clue_panel)
-            card.setGeometry(x, 46, 84, 66)
-            card.setStyleSheet(raised_panel_style("#fff4e0", "#c69969", 8, "#a97951"))
-            icon = QLabel(card)
-            icon.setGeometry(12, 4, 60, 30)
-            icon.setAlignment(Qt.AlignCenter)
-            icon.setStyleSheet("background: transparent; border: none;")
-            title = QLabel(card)
-            title.setGeometry(6, 36, 72, 22)
-            title.setAlignment(Qt.AlignCenter)
-            title.setWordWrap(True)
-            title.setStyleSheet(
-                "background: transparent; border: none; color: #10151b;"
-                "font: 900 9pt 'Microsoft YaHei';"
-            )
-            self.clue_cards.append(card)
-            self.clue_card_icons.append(icon)
-            self.clue_card_titles.append(title)
-
-        self.interaction_shadow = card_shadow(self, 594, 596, 296, 126, 10, "#a9845d")
-        self.interaction_panel = QFrame(self)
-        self.interaction_panel.setGeometry(594, 596, 296, 126)
-        self.interaction_panel.setStyleSheet(raised_panel_style(PANEL, SOFT_LINE, 10, "#b48b62"))
-        label(self.interaction_panel, "☝ 轻量互动", (18, 7, 154, 28), 12, 800)
-        label(self.interaction_panel, "整理散落信笺（拖拽归位）", (18, 32, 230, 24), 10, 700)
-        self.interaction_stack = QLabel(self.interaction_panel)
-        self.interaction_stack.setGeometry(14, 48, 82, 56)
-        self.interaction_stack.setAlignment(Qt.AlignCenter)
-        self.interaction_stack.setStyleSheet("background: transparent; border: none;")
-        self.interaction_stack.setPixmap(render_paper_stack_pixmap(76))
-        self.interaction_arrow = QLabel("›", self.interaction_panel)
-        self.interaction_arrow.setGeometry(104, 56, 18, 24)
-        self.interaction_arrow.setAlignment(Qt.AlignCenter)
-        self.interaction_arrow.setStyleSheet(
-            "background: transparent; border: none; color: #8b6a4d; font: 900 18pt 'Microsoft YaHei';"
-        )
-        self.drop_target = QLabel("", self.interaction_panel)
-        self.drop_target.setGeometry(176, 48, 96, 56)
-        self.drop_target.setAlignment(Qt.AlignCenter)
-        self.drop_target.setStyleSheet(
-            "background: transparent; color: #9a7256; border: 2px dashed #b99169;"
-            "border-left: 1px solid #f7fbff; border-top: 1px solid #f7fbff;"
-            "border-right: 4px solid #ab835a; border-bottom: 4px solid #ab835a;"
-            "border-radius: 6px; font: 900 10pt 'Microsoft YaHei';"
-        )
-        self.drop_target_icon = QLabel(self.drop_target)
-        self.drop_target_icon.setGeometry(12, 4, 72, 46)
-        self.drop_target_icon.setAlignment(Qt.AlignCenter)
-        self.drop_target_icon.setStyleSheet("background: transparent; border: none;")
-        self.drop_target_icon.setPixmap(render_envelope_pixmap(72))
-        self.drop_target_caption = QLabel("信封", self.drop_target)
-        self.drop_target_caption.setGeometry(0, 38, 96, 16)
-        self.drop_target_caption.setAlignment(Qt.AlignCenter)
-        self.drop_target_caption.setStyleSheet(
-            "background: transparent; border: none; color: #9a7256; font: 900 9pt 'Microsoft YaHei';"
-        )
-        self.envelope = DraggableEnvelope(self.interaction_panel, self.drop_target.geometry(), self._complete_interaction)
-        self.interaction_tip = label(self.interaction_panel, "提示：把信纸拖到信封里", (84, 95, 194, 24), 9, 700)
-
-        self.pet_note = QLabel(self)
-        self.pet_note.setGeometry(882, 582, 130, 78)
-        self.pet_note.setWordWrap(True)
-        self.pet_note.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        self.pet_note.setStyleSheet(
-            f"background-color: {PANEL}; color: {INK}; border: 2px solid {LINE};"
-            "border-left: 1px solid #fffef8; border-top: 1px solid #fffef8;"
-            "border-right: 4px solid #b58a61; border-bottom: 4px solid #b58a61;"
-            "border-radius: 8px;"
-            "font-family: 'Microsoft YaHei'; font-size: 9pt; font-weight: 900; padding: 8px;"
-        )
-        pet = QLabel(self)
-        pet.setGeometry(936, 658, 92, 72)
-        note_movie = QMovie(str(self.base_dir / "pet" / "init" / "stay.gif"))
-        note_movie.setScaledSize(QSize(82, 82))
-        pet.setMovie(note_movie)
-        note_movie.start()
-        self.note_pet_movie = note_movie
 
     def _build_right_panel(self) -> None:
         self.theme_shadow = card_shadow(self, 1040, 118, 292, 132, 10, "#9f7a55")
@@ -678,6 +606,27 @@ class MiniGamePanelWindow(QWidget):
         apply_button_icon(self.back_button, "back", 24)
         self.back_button.clicked.connect(self.hide)
 
+    def _build_task_controls(self) -> None:
+        self.task_panel = QFrame(self.event_panel)
+        self.task_panel.setGeometry(24, 328, 340, 88)
+        self.task_panel.setStyleSheet(raised_panel_style(PANEL, SOFT_LINE, 8, "#b48b62"))
+
+        self.task_status = label(self.task_panel, "", (14, 6, 180, 24), 10, 800)
+        self.inline_continue_button = PixelButton("继续", self.task_panel, BLUE, "white")
+        self.inline_continue_button.setGeometry(14, 38, 96, 38)
+        apply_button_icon(self.inline_continue_button, "story_choice", 18)
+        self.inline_continue_button.clicked.connect(self._continue_story)
+
+        self.restart_button = PixelButton("重新开始", self.task_panel, MINT, "white")
+        self.restart_button.setGeometry(120, 38, 106, 38)
+        apply_button_icon(self.restart_button, "restart", 18)
+        self.restart_button.clicked.connect(self._restart)
+
+        self.back_button = PixelButton("返回", self.task_panel, BLUE, "white")
+        self.back_button.setGeometry(236, 38, 88, 38)
+        apply_button_icon(self.back_button, "back", 18)
+        self.back_button.clicked.connect(self.hide)
+
     def _right_card(self, x: int, y: int, w: int, h: int, title: str) -> QFrame:
         card = QFrame(self)
         card.setGeometry(x, y, w, h)
@@ -691,10 +640,18 @@ class MiniGamePanelWindow(QWidget):
         self.subtitle.setText(self.state.subtitle)
         self.progress_label.setText(progress_text(self.state))
         self.scene.set_caption(node.scene_text)
+        self._refresh_header_image()
         self.node_title.setText(node.title)
         self.node_prompt.setText(node.prompt)
-        self.pet_note.setText(node.pet_reply)
-        self.feedback.setText(node.pet_reply)
+        if hasattr(self, "feedback"):
+            self.feedback.setText(node.pet_reply)
+        if hasattr(self, "task_status"):
+            if self.state.node_index >= 4:
+                self.task_status.setText("故事已完成")
+            elif self.state.interaction_done:
+                self.task_status.setText("选择已生效")
+            else:
+                self.task_status.setText("请选择行动")
 
         choices = available_choices(self.state)
         for index, button in enumerate(self.choice_buttons):
@@ -702,7 +659,7 @@ class MiniGamePanelWindow(QWidget):
                 choice = choices[index]
                 available = max(0, button.width() - 46)
                 button.setText(button.fontMetrics().elidedText(choice.title, Qt.ElideRight, available))
-                apply_button_icon(button, "story_choice", 24)
+                self._apply_choice_button_image(button, choice.id)
                 button.show()
                 try:
                     button.clicked.disconnect()
@@ -710,57 +667,34 @@ class MiniGamePanelWindow(QWidget):
                     pass
                 button.clicked.connect(lambda checked=False, choice_id=choice.id: self._choose(choice_id))
             else:
+                button.setIcon(QIcon())
                 button.hide()
+        self._prefetch_choice_images(choices)
+        self._prefetch_node_image()
 
-        self.clue_title.setText(f"🔎 已收集线索        {collected_count_text(self.state)}")
-        collected = [clue for clue in self.state.clues if clue.collected]
-        for index, card in enumerate(self.clue_cards):
-            if index < len(collected[-3:]):
-                clue = collected[-3:][index]
-                icon_feature, icon_color, fill_color = CLUE_ICON_MAP.get(
-                    clue.id,
-                    ("note", "#7f6a57", "#fff2e4"),
-                )
-                if icon_feature == "story_stamp":
-                    self.clue_card_icons[index].setPixmap(render_stamp_pixmap(44))
-                elif icon_feature == "story_clock":
-                    self.clue_card_icons[index].setPixmap(render_clock_pixmap(44))
-                elif icon_feature == "note":
-                    self.clue_card_icons[index].setPixmap(render_placeholder_pixmap(44))
-                else:
-                    apply_label_icon(self.clue_card_icons[index], icon_feature, 24, icon_color)
-                self.clue_card_titles[index].setText(clue.title)
-                card.setStyleSheet(raised_panel_style(fill_color, "#c89969", 8, "#a67a51"))
-                self.clue_card_icons[index].show()
-                self.clue_card_titles[index].show()
+        if hasattr(self, "clue_title"):
+            self.clue_title.setText(f"🔎 已收集线索        {collected_count_text(self.state)}")
+        if hasattr(self, "theme_subject"):
+            self.theme_subject.setText(f"✉ 主题：   {self.state.theme_subject}")
+            self.theme_mood.setText(f"♧ 氛围：   {self.state.theme_mood}")
+            self.theme_style.setText(f"★ 风格：   {self.state.theme_style}")
+        if hasattr(self, "reward_rows") and self.reward_rows:
+            for index, reward in enumerate(self.state.rewards):
+                self.reward_rows[index].setText(f"{reward.icon}  {reward.label:<8} +{reward.value}")
+            self.reward_rows[3].setText(f"▤  线索记录       {collected_count_text(self.state)}")
+        if hasattr(self, "envelope"):
+            self.envelope.setVisible(not self.state.interaction_done)
+            if not self.state.interaction_done:
+                self.envelope.reset_position()
+                self.interaction_tip.setText("提示：将信纸拖到信封里")
             else:
-                self.clue_card_icons[index].setPixmap(render_placeholder_pixmap(44))
-                self.clue_card_titles[index].setText("等待发现")
-                self.clue_card_titles[index].show()
-                card.setStyleSheet(
-                    "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #fffdf7, stop:1 #f5e8d7);"
-                    "border: 2px dashed #c7a989;"
-                    "border-left: 1px solid #fffef8; border-top: 1px solid #fffef8;"
-                    "border-right: 4px solid #b99067; border-bottom: 4px solid #b99067;"
-                    "border-radius: 8px;"
-                )
-
-        self.theme_subject.setText(f"✉ 主题：   {self.state.theme_subject}")
-        self.theme_mood.setText(f"♧ 氛围：   {self.state.theme_mood}")
-        self.theme_style.setText(f"★ 风格：   {self.state.theme_style}")
-
-        for index, reward in enumerate(self.state.rewards):
-            self.reward_rows[index].setText(f"{reward.icon}  {reward.label:<8} +{reward.value}")
-        self.reward_rows[3].setText(f"▤  线索记录       {collected_count_text(self.state)}")
-
-        self.envelope.setVisible(not self.state.interaction_done)
-        if not self.state.interaction_done:
-            self.envelope.reset_position()
-            self.interaction_tip.setText("提示：将信纸拖到信封里")
-        else:
-            self.interaction_tip.setText("已归位：信纸安静地躺在信封里")
+                self.interaction_tip.setText("已归位：信纸安静地躺在信封里")
 
     def _choose(self, choice_id: str) -> None:
+        image_key = self._choice_image_key(self.state, choice_id)
+        with self._image_lock:
+            self.selected_choice_image_key = image_key
+            self.selected_choice_image_path = self.choice_image_paths.get(image_key)
         self.state = choose_event(self.state, choice_id)
         self.refresh()
 
@@ -789,7 +723,92 @@ class MiniGamePanelWindow(QWidget):
 
     def _restart(self) -> None:
         self.state = restart_game(self.state)
+        self.selected_choice_image_key = ""
+        self.selected_choice_image_path = None
         self.refresh()
 
     def _set_feedback(self, text: str) -> None:
-        self.feedback.setText(text)
+        if hasattr(self, "feedback"):
+            self.feedback.setText(text)
+
+    def _prefetch_choice_images(self, choices) -> None:
+        if self.choice_image_service is None:
+            return
+        for choice in choices:
+            with self._image_lock:
+                image_key = self._choice_image_key(self.state, choice.id)
+                if image_key in self.choice_image_paths or image_key in self.choice_image_loading:
+                    continue
+                self.choice_image_loading.add(image_key)
+            state_snapshot = self.state
+            thread = threading.Thread(
+                target=self._generate_choice_image,
+                args=(state_snapshot, choice),
+                name=f"MoodPetSeedream-{choice.id}",
+                daemon=True,
+            )
+            thread.start()
+
+    def _generate_choice_image(self, state: MiniGameState, choice) -> None:
+        try:
+            assert self.choice_image_service is not None
+            path = self.choice_image_service.ensure_choice_image(state, choice)
+            image_key = self._choice_image_key(state, choice.id)
+            with self._image_lock:
+                self.choice_image_paths[image_key] = path
+                self.choice_image_errors.pop(image_key, None)
+        except Exception as exc:
+            image_key = self._choice_image_key(state, choice.id)
+            with self._image_lock:
+                self.choice_image_errors[image_key] = str(exc)
+        finally:
+            image_key = self._choice_image_key(state, choice.id)
+            with self._image_lock:
+                self.choice_image_loading.discard(image_key)
+
+    def _refresh_choice_images(self) -> None:
+        choices = available_choices(self.state)
+        for index, choice in enumerate(choices[: len(self.choice_buttons)]):
+            self._apply_choice_button_image(self.choice_buttons[index], choice.id)
+        self._refresh_header_image()
+
+    def _apply_choice_button_image(self, button: PixelButton, choice_id: str) -> None:
+        image_key = self._choice_image_key(self.state, choice_id)
+        with self._image_lock:
+            path = self.choice_image_paths.get(image_key)
+            loading = image_key in self.choice_image_loading
+        if path and path.exists():
+            pixmap = QPixmap(str(path))
+            if not pixmap.isNull():
+                button.setIcon(QIcon(pixmap.scaled(28, 28, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)))
+                return
+        if loading:
+            button.setIcon(QIcon(render_placeholder_pixmap(28)))
+        else:
+            apply_button_icon(button, "story_choice", 24)
+
+    def _choice_image_key(self, state: MiniGameState, choice_id: str) -> str:
+        return f"{state.node_index}:{choice_id}"
+
+    def _refresh_header_image(self) -> None:
+        with self._image_lock:
+            selected_path = self.choice_image_paths.get(self.selected_choice_image_key, self.selected_choice_image_path)
+        path = selected_path or self._first_available_choice_image_path()
+        if path and path.exists():
+            pixmap = QPixmap(str(path))
+            if not pixmap.isNull():
+                self.thumb.setPixmap(pixmap.scaled(88, 88, Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation))
+                self.scene.set_image_path(path)
+                return
+        self.thumb.setPixmap(QPixmap())
+        self.scene.set_image_path(None)
+        apply_label_icon(self.thumb, "story_stamp", 48, BLUE_STAMP)
+
+    def _first_available_choice_image_path(self) -> Optional[Path]:
+        for choice in available_choices(self.state):
+            image_key = self._choice_image_key(self.state, choice.id)
+            with self._image_lock:
+                path = self.choice_image_paths.get(image_key)
+            if path and path.exists():
+                return path
+        return None

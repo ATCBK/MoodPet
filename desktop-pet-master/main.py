@@ -10,12 +10,14 @@ import webbrowser
 from datetime import datetime
 from pathlib import Path
 
-from PyQt5.QtCore import QSize, Qt, QTimer
+from PyQt5.QtCore import QEasingCurve, QPropertyAnimation, QSize, Qt, QTimer
 from PyQt5.QtGui import QCursor, QIcon, QMovie
 from PyQt5.QtWidgets import QAction, QApplication, QFrame, QLabel, QMainWindow, QMenu, QPushButton, QSystemTrayIcon
 
 from middlewares.self_log import DesktopPetLogger
-from moodpet.bubble_policy import BubbleContext, BubbleSettings, build_bubble_reply, can_emit_bubble
+from moodpet.bubble_async import AsyncBubbleReplyRunner
+from moodpet.bubble_policy import BubbleContext, BubbleSettings, can_emit_bubble
+from moodpet.deepseek_bubble import build_default_bubble_provider
 from moodpet.emotion import build_emotion_state
 from moodpet.emotion_camera import EmotionCameraWorker
 from moodpet.mini_game_panel import MiniGamePanelWindow
@@ -33,7 +35,7 @@ from moodpet.ui_state import (
 
 
 BASE_DIR = Path(__file__).resolve().parent
-MODEL_PATH = BASE_DIR / "models" / "emotion-ferplus-8.onnx"
+MODEL_PATH = BASE_DIR / "models" / "emotions-recognition-retail-0003.xml"
 
 
 class DemoWin(QMainWindow):
@@ -47,13 +49,21 @@ class DemoWin(QMainWindow):
         self.current_emotion_state = build_emotion_state("disabled")
         self.bubble_settings = BubbleSettings(frequency="medium", do_not_disturb=True)
         self.last_bubble_emit_seconds = None
+        self.last_bubble_reply_text = ""
         self.active_bubble_target_id = "realtime"
+        self.bubble_provider = build_default_bubble_provider(env_path=BASE_DIR / ".env")
+        self.bubble_reply_queue: "queue.Queue" = queue.Queue()
+        self.bubble_reply_runner = AsyncBubbleReplyRunner(self.bubble_reply_queue)
+        self.bubble_reply_inflight = False
+        self.bubble_request_id = 0
+        self.latest_bubble_request_id = 0
         self.emotion_queue: "queue.Queue" = queue.Queue(maxsize=1)
         self.emotion_worker = EmotionCameraWorker(self.emotion_queue, MODEL_PATH)
         self.realtime_monitor = None
         self.mini_game_panel = None
         self.todo_panel = None
         self.settings_panel = None
+        self.feature_transition_animations = []
 
         self._init_ui()
         self._init_tray()
@@ -77,19 +87,18 @@ class DemoWin(QMainWindow):
         self.setWindowOpacity(1)
 
         self.status_label = QLabel("", self)
-        self.status_label.setGeometry(28, 18, 310, 42)
+        self.status_label.setGeometry(28, 18, 238, 36)
         self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setToolTip("使用摄像头在本地进行状态感知；未开启时可右键开启。")
         self.status_label.setStyleSheet(
             "QLabel {"
-            "font: 11pt 'Microsoft YaHei';"
+            "font: 10pt 'Microsoft YaHei';"
             "font-weight: 700;"
-            "color: #65ffd8;"
-            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #174160, stop:1 #102943);"
-            "border: 3px solid #071927;"
-            "border-right: 6px solid #071927;"
-            "border-bottom: 6px solid #071927;"
-            "border-radius: 10px;"
-            "padding: 6px 14px;"
+            "color: #245247;"
+            "background-color: rgba(238, 251, 244, 230);"
+            "border: 2px solid #9bd4c3;"
+            "border-radius: 8px;"
+            "padding: 5px 12px;"
             "}"
         )
 
@@ -117,23 +126,6 @@ class DemoWin(QMainWindow):
         self.label = QLabel("", self)
         self.label.setGeometry(82, 234, 200, 200)
         self.Action(str(BASE_DIR / "pet" / "init" / "start.gif"))
-
-        self.tip_label = QLabel("拖拽只改变位置\n双击打开功能导航", self)
-        self.tip_label.setGeometry(24, 164, 258, 58)
-        self.tip_label.setAlignment(Qt.AlignCenter)
-        self.tip_label.setStyleSheet(
-            "QLabel {"
-            "font: 9pt 'Microsoft YaHei';"
-            "font-weight: 700;"
-            "color: #65ffd8;"
-            "background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #17334f, stop:1 #0d2538);"
-            "border: 2px dashed #65ffd8;"
-            "border-right: 5px solid #0b1a28;"
-            "border-bottom: 5px solid #0b1a28;"
-            "border-radius: 8px;"
-            "padding: 6px;"
-            "}"
-        )
 
         self.navigation_panel = QFrame(self)
         self.navigation_panel.setGeometry(346, 26, 388, 480)
@@ -198,6 +190,10 @@ class DemoWin(QMainWindow):
         self.emotion_timer = QTimer(self)
         self.emotion_timer.timeout.connect(self.poll_emotion_result)
         self.emotion_timer.start(500)
+
+        self.bubble_reply_timer = QTimer(self)
+        self.bubble_reply_timer.timeout.connect(self.poll_bubble_reply_result)
+        self.bubble_reply_timer.start(200)
 
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
@@ -292,7 +288,7 @@ class DemoWin(QMainWindow):
         close_button.clicked.connect(self.navigation_panel.hide)
 
         hero = QLabel(self.navigation_panel)
-        hero.setGeometry(126, 72, 136, 116)
+        hero.setGeometry(126, 66, 136, 112)
         hero_movie = QMovie(str(BASE_DIR / "pet" / "init" / "stay.gif"))
         hero_movie.setScaledSize(QSize(124, 124))
         hero.setMovie(hero_movie)
@@ -300,7 +296,7 @@ class DemoWin(QMainWindow):
         self.navigation_hero_movie = hero_movie
 
         prompt = QLabel("选择你想使用的功能", self.navigation_panel)
-        prompt.setGeometry(78, 184, 232, 40)
+        prompt.setGeometry(42, 178, 304, 42)
         prompt.setAlignment(Qt.AlignCenter)
         prompt.setStyleSheet("font: 14pt 'Microsoft YaHei'; font-weight: 900; color: #111318;")
 
@@ -483,14 +479,58 @@ class DemoWin(QMainWindow):
         widget.mousePressEvent = open_module
 
     def open_feature_module(self, module_id):
+        self.navigation_panel.hide()
+        anchor_pos = self._active_feature_panel_pos()
+        self._hide_feature_panels(except_module=module_id)
+        if module_id == "default":
+            return
+        panel = None
         if module_id == "realtime":
-            self.open_realtime_monitor()
+            panel = self.open_realtime_monitor()
         elif module_id == "todo":
-            self.open_todo_panel()
+            panel = self.open_todo_panel()
         elif module_id == "games":
-            self.open_game_entry()
+            panel = self.open_game_entry()
         elif module_id == "settings":
-            self.open_settings_panel()
+            panel = self.open_settings_panel()
+        if panel is not None:
+            self._finish_feature_panel_open(panel, anchor_pos)
+
+    def _active_feature_panel_pos(self):
+        for panel in (self.realtime_monitor, self.todo_panel, self.mini_game_panel, self.settings_panel):
+            if panel is not None and panel.isVisible():
+                return panel.pos()
+        return None
+
+    def _hide_feature_panels(self, except_module=None):
+        panels = {
+            "realtime": self.realtime_monitor,
+            "todo": self.todo_panel,
+            "games": self.mini_game_panel,
+            "settings": self.settings_panel,
+        }
+        for module_id, panel in panels.items():
+            if module_id != except_module and panel is not None:
+                panel.hide()
+
+    def _finish_feature_panel_open(self, panel, anchor_pos=None):
+        if anchor_pos is not None:
+            panel.move(anchor_pos)
+        panel.setWindowOpacity(0.0)
+        panel.raise_()
+        panel.activateWindow()
+        animation = QPropertyAnimation(panel, b"windowOpacity", self)
+        animation.setDuration(180)
+        animation.setStartValue(0.0)
+        animation.setEndValue(1.0)
+        animation.setEasingCurve(QEasingCurve.OutCubic)
+        animation.finished.connect(lambda anim=animation: self._feature_transition_finished(anim))
+        self.feature_transition_animations.append(animation)
+        animation.start()
+
+    def _feature_transition_finished(self, animation):
+        if animation in self.feature_transition_animations:
+            self.feature_transition_animations.remove(animation)
 
     def open_actions_menu(self):
         menu = QMenu("待办", self)
@@ -503,19 +543,21 @@ class DemoWin(QMainWindow):
 
     def open_todo_panel(self):
         if self.todo_panel is None:
-            self.todo_panel = TodoPanelWindow(BASE_DIR, parent=None)
+            self.todo_panel = TodoPanelWindow(BASE_DIR, parent=None, open_target=self.open_feature_module)
         self.todo_panel.refresh()
         self.todo_panel.show()
         self.todo_panel.raise_()
         self.todo_panel.activateWindow()
+        return self.todo_panel
 
     def open_game_entry(self):
         if self.mini_game_panel is None:
-            self.mini_game_panel = MiniGamePanelWindow(BASE_DIR, parent=None)
+            self.mini_game_panel = MiniGamePanelWindow(BASE_DIR, parent=None, open_target=self.open_feature_module)
         self.mini_game_panel.refresh()
         self.mini_game_panel.show()
         self.mini_game_panel.raise_()
         self.mini_game_panel.activateWindow()
+        return self.mini_game_panel
 
     def open_settings_folder(self):
         config_dir = BASE_DIR / "config"
@@ -538,6 +580,7 @@ class DemoWin(QMainWindow):
         self.settings_panel.show()
         self.settings_panel.raise_()
         self.settings_panel.activateWindow()
+        return self.settings_panel
 
     def open_realtime_monitor(self):
         if self.realtime_monitor is None:
@@ -553,6 +596,7 @@ class DemoWin(QMainWindow):
         self.realtime_monitor.show()
         self.realtime_monitor.raise_()
         self.realtime_monitor.activateWindow()
+        return self.realtime_monitor
 
     def toggle_navigation_panel(self):
         self.refresh_navigation_panel()
@@ -592,7 +636,7 @@ class DemoWin(QMainWindow):
         if self.emotion_enabled:
             self.emotion_worker.stop()
             self.emotion_enabled = False
-            self.show_emotion_state(build_emotion_state("disabled", message="情绪识别已关闭。"))
+            self.show_emotion_state(build_emotion_state("disabled", message="状态感知已关闭。"))
             self.refresh_navigation_panel()
             if self.realtime_monitor is not None:
                 self.realtime_monitor.refresh()
@@ -601,7 +645,7 @@ class DemoWin(QMainWindow):
             return
 
         self.emotion_enabled = True
-        self.show_emotion_state(build_emotion_state("unknown", message="正在启动摄像头情绪识别..."))
+        self.show_emotion_state(build_emotion_state("unknown", message="正在启动状态感知..."))
         self.refresh_navigation_panel()
         if self.realtime_monitor is not None:
             self.realtime_monitor.refresh()
@@ -621,18 +665,49 @@ class DemoWin(QMainWindow):
         self.current_emotion_state = state
         self.status_label.setText("● " + camera_status_text(self.emotion_enabled, state.emotion))
         if state.emotion in {"disabled", "error"}:
+            self._invalidate_pending_bubble_reply()
             self.bubble.setText(pet_bubble_text(state))
+            self.last_bubble_reply_text = self.bubble.text()
             self.last_bubble_emit_seconds = None
         else:
             now_seconds = time.time()
-            if can_emit_bubble(self.bubble_settings, now_seconds, self.last_bubble_emit_seconds):
-                context = BubbleContext(emotion_state=state, settings=self.bubble_settings)
-                reply = build_bubble_reply(context)
-                self.bubble.setText(reply.text)
-                self.active_bubble_target_id = reply.target_id
-                self.last_bubble_emit_seconds = now_seconds
+            if (
+                not self.bubble_reply_inflight
+                and can_emit_bubble(self.bubble_settings, now_seconds, self.last_bubble_emit_seconds)
+            ):
+                context = BubbleContext(
+                    emotion_state=state,
+                    settings=self.bubble_settings,
+                    recent_reply=self.last_bubble_reply_text,
+                )
+                self._request_bubble_reply(context, now_seconds)
         if self.realtime_monitor is not None:
             self.realtime_monitor.refresh()
+
+    def _request_bubble_reply(self, context, now_seconds):
+        self.bubble_request_id += 1
+        self.latest_bubble_request_id = self.bubble_request_id
+        self.bubble_reply_inflight = True
+        self.last_bubble_emit_seconds = now_seconds
+        self.bubble_reply_runner.request(self.bubble_request_id, context, self.bubble_provider)
+
+    def poll_bubble_reply_result(self):
+        try:
+            while True:
+                request_id, reply = self.bubble_reply_queue.get_nowait()
+                if request_id != self.latest_bubble_request_id:
+                    continue
+                self.bubble_reply_inflight = False
+                self.bubble.setText(reply.text)
+                self.last_bubble_reply_text = reply.text
+                self.active_bubble_target_id = reply.target_id
+        except queue.Empty:
+            pass
+
+    def _invalidate_pending_bubble_reply(self):
+        self.bubble_request_id += 1
+        self.latest_bubble_request_id = self.bubble_request_id
+        self.bubble_reply_inflight = False
 
     def apply_panel_settings(self, state):
         self.bubble_settings = BubbleSettings(

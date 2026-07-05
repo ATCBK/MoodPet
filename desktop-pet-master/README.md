@@ -1,103 +1,290 @@
-# 桌面宠物
+# Mood-Pet：情绪驱动的桌面精灵
 
-# Note
-这个项目从开源项目fork而来，准备替换成自己想要实现的一些功能，
-原始工程来自QinWinter大佬，项目原地址如下：
-https://github.com/redqt/DesktopPet_Winter_luoxiaohei
-## 功能
+<p align="center">
+  <img alt="Mood-Pet" src="https://img.shields.io/badge/Mood--Pet-情绪驱动桌面精灵-111111?style=for-the-badge" />
+  <img alt="Fourth Wall" src="https://img.shields.io/badge/第四面墙-情绪成为输入-ffcf56?style=for-the-badge" />
+  <img alt="Local AI" src="https://img.shields.io/badge/本地识别-隐私优先-7bdff2?style=for-the-badge" />
+  <img alt="Python" src="https://img.shields.io/badge/Python-PyQt5-8bd17c?style=for-the-badge" />
+</p>
 
-- 简单的拖拽，以及gif动画播放
-- 自定义右键菜单
-  - 通过修改config里面的menu_config.json即可修改右键菜单选项，并且也可以自定义脚本来简化电脑的使用
-- 自定义桌宠样式
-  - 只需要更换pet文件夹下面的gif图标即可实现替换桌宠样式
+![Mood-Pet 情绪驱动的桌面精灵](assets/mood-pet-cover.png)
 
-## 自定义脚本及右键菜单
+> 让游戏不只响应操作，也开始回应人。
 
-右键菜单是可以自定义的，只需要对config文件夹下面的menu_config.json文件进行编辑即可动态的修改右键菜单的内容
+Mood-Pet 不是单纯“更可爱的桌宠”，而是一款基于人脸情绪识别的智能桌面伙伴。它通过本地状态感知、主动气泡、待办任务和情绪互动故事，把用户屏幕前的真实状态转化为新的交互输入。
 
-​	![image-20240404140106757](assets/image-20240404140106757.png)
+过去，游戏只能响应鼠标、键盘和用户操作；现在，Mood-Pet 让桌面角色开始感知用户状态，并根据用户当下的情绪、节奏和任务场景生成对应反馈。它的核心创新是：用情绪识别打破人与游戏之间的第四面墙，让角色真正“看见”屏幕前的人。
+
+## 核心理念
+
+传统桌面软件只能看到操作，却看不到人。
+
+用户可能正在开心、疲惫、低落、烦躁或平静，但系统通常只能接收点击、输入和命令。Mood-Pet 把情绪加入交互链路：
+
+```text
+键盘 / 鼠标 + 本地情绪识别
+        ↓
+桌宠反馈 + 主动气泡 + 待办提醒 + 情绪互动故事
+```
+
+这意味着 Mood-Pet 不再只是被动等待用户点击，而是能够结合当前状态，用更柔和、更贴近场景的方式回应用户。
+
+## 产品定位
+
+Mood-Pet 是一款情绪感知型桌面伙伴，包含以下模块：
+
+- 情绪识别算法：基于摄像头画面进行本地人脸检测与情绪识别。
+- 桌面精灵：常驻桌面的轻量角色，支持拖拽、动画和右键菜单。
+- 实时检测：展示当前识别状态、置信度和摄像头状态。
+- 主动气泡：根据用户状态生成短句提醒，并可跳转到对应功能。
+- 待办功能：进入真实学习和办公场景，用更柔和的方式推动行动。
+- 情绪互动故事小游戏：根据用户状态生成隐喻式故事体验。
+- 设置与隐私控制：支持摄像头开关、气泡频率、免打扰和跳转目标配置。
+- 大模型辅助内容：可接入 DeepSeek / 火山方舟等服务生成气泡文案与故事素材。
+
+## 功能亮点
+
+### 1. 打破第四面墙
+
+传统游戏中，玩家控制角色，但角色不知道玩家。Mood-Pet 中，用户情绪会影响角色反馈和内容走向：
+
+- 故事主题；
+- 故事氛围；
+- 事件节点；
+- 宠物台词；
+- 结尾点题；
+- 现实行动建议。
+
+游戏不再只是被玩家操作，而是开始回应玩家本身。
+
+### 2. 情绪驱动故事游戏
+
+Mood-Pet 的小游戏不是普通闯关游戏，而是根据用户当前状态生成的隐喻式互动故事。
+
+例如《雾中的小邮局》不会直接告诉用户“你焦虑了”或“你疲惫了”，而是通过一封没有署名的信、一座慢半拍的钟、一间雾中的小邮局和一个等待回应的角色，让用户在故事里慢慢理解自己的状态。
+
+这种设计让情绪反馈不再像评判，而像一次温和的自我观察。
+
+### 3. 升级版桌宠
+
+传统桌宠通常能显示在桌面、播放动画、提供基础互动，但长期价值有限。Mood-Pet 在桌宠基础上加入状态感知和任务连接：
+
+- 可以识别用户当前状态；
+- 可以主动用气泡进行轻量沟通；
+- 可以根据情绪推荐待办、实时检测或小游戏；
+- 可以用故事陪伴用户消化状态；
+- 可以根据不同状态调整反馈语气和入口。
+
+Mood-Pet 不是装饰，而是能感知用户状态的桌面角色。
+
+### 4. 待办带来真实留存
+
+单纯桌宠容易停留在新鲜感阶段。Mood-Pet 加入待办功能，让陪伴进入真实的学习和办公场景。
+
+普通待办会说：
+
+```text
+你还有一个任务未完成。
+```
+
+Mood-Pet 会说：
+
+```text
+你看起来有点累，要不要先完成一个小任务？
+```
+
+待办模块让情绪识别不只停留在“看见状态”，还可以进一步连接到现实行动。
+
+## 情绪算法设计
+
+Mood-Pet 的情绪算法并不是把模型结果简单展示给用户，而是做了一层适合桌面陪伴场景的状态优化。
+
+整体流程如下：
+
+```text
+摄像头采集
+  → 人脸检测
+  → 人脸区域标准化
+  → OpenVINO 情绪模型推理
+  → 情绪分数归一化
+  → Mood-Pet 状态语义映射
+  → 置信度与状态封装
+  → 桌宠行为决策 / 气泡反馈 / 故事节点
+```
+
+当前实现中，系统会优先在本地进行摄像头采集和人脸检测，选择画面中最主要的人脸区域，并统一转换为模型需要的输入尺寸。模型输出后，Mood-Pet 会把底层识别标签转化为更适合产品表达的情绪状态，例如开心、平静、低落、生气、惊讶等。
+
+我们重点优化了三件事：
+
+- 输出语义优化：不直接把原始模型标签暴露给用户，而是映射为桌宠可理解、可行动的状态。
+- 交互决策优化：不同状态会进入不同反馈路径，例如低落或烦躁时优先引导待办，开心或惊讶时更适合进入小游戏。
+- 隐私与响应优化：识别主要在本地完成，应用层传递的是结构化状态字段，而不是实时画面。
+
+示例状态结构：
 
 ```json
 {
-    "主菜单": [
-        {
-            "name": "GPT-academic",
-            "type": "subprocess.Popen",# 可选type类型：subprocess.run、subprocess.Popen、webbrowser(打开浏览器)
-            "params": [
-                "powershell",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-File",
-                ".\\bat\\academic.ps1"
-            ]
-        },
-		......
-    ],
-    "子菜单的名称": [
-        {
-            "name": "子菜单的名称",
-            "type": "使用何种方式打开",
-            "params": "参数"
-        },
-        {#示例 在浏览器中打开网站http://localhost:5244/
-            "name": "我要看Alist",
-            "type": "webbrowser",
-            "params": "http://localhost:5244/"
-        }
-    ]
-    ......
+  "emotion": "sad",
+  "confidence": 0.82,
+  "face_detected": true
 }
-
 ```
 
-这里修改了 之后只是内容修改了 ，要想实现相应的功能需要在bat文件夹下创建相应的脚本
+这些字段会继续参与气泡策略、故事生成、待办提醒和界面展示，使情绪识别真正成为交互输入，而不只是一个检测结果。
 
-这是bat脚本示例 一般使用subprocess.run
+## 技术实现
 
-```bat
-@echo off
-start "" "D:\Qingfeng\HeyboxAccelerator\heyboxacc.exe"
-start "" "D:\Program Files (x86)\Tencent\TIM\Bin\QQScLauncher.exe"
-start "" "D:\Program Files\Steam++\Steam++.exe"
+Mood-Pet 的桌面端以 Python + PyQt5 为核心，结合 OpenCV、OpenVINO 和大模型接口完成完整交互闭环。
+
+```text
+摄像头采集
+  → OpenCV 人脸检测
+  → OpenVINO 本地情绪识别
+  → EmotionState 状态结构化
+  → BubblePolicy 气泡策略
+  → 桌宠反馈 / 实时检测 / 待办 / 小游戏 / 设置
+  → 可选大模型生成个性化文案与故事素材
 ```
 
-这是powershell脚本示例 一般使用subprocess.Popen
+技术点包括：
+
+- PyQt5 桌面悬浮窗与系统托盘；
+- OpenCV 摄像头采集与人脸检测；
+- OpenVINO CPU 本地推理；
+- 情绪状态结构化封装；
+- 主动气泡冷却、免打扰和跳转策略；
+- DeepSeek 气泡文案生成；
+- Seedream / 火山方舟图像生成配置；
+- 情绪互动故事节点管理；
+- 本地待办状态与任务完成反馈；
+- 自定义右键菜单和桌宠 GIF 资源替换。
+
+## 隐私设计
+
+Mood-Pet 的情绪识别主要在本地完成。摄像头画面不需要直接上传服务器，系统在应用层使用的是本地识别后的状态字段。
+
+这样做可以：
+
+- 降低隐私风险；
+- 减少图像传输压力；
+- 提升桌面端响应速度；
+- 让用户更容易理解系统正在处理什么；
+- 让情绪识别更适合常驻桌面场景。
+
+当需要调用大模型服务时，Mood-Pet 传递的是情绪、置信度、目标入口、文案长度等结构化信息，而不是摄像头原始画面。
+
+## 人文设计
+
+Mood-Pet 不做强干预，也不直接评判用户。
+
+它不会粗暴地说“你现在很焦虑”或“你状态不好”，而是通过故事、隐喻和轻量对话引导用户。它更接近一种寓言式情绪引导：用物件、线索、选择和结尾点题，让用户在故事中慢慢看见自己。
+
+我们不是告诉用户“你怎么了”，而是让用户在故事中慢慢看见自己。
+
+## 产品闭环
+
+```text
+用户使用电脑
+  ↓
+Mood-Pet 本地识别用户状态
+  ↓
+桌宠通过气泡轻量反馈
+  ↓
+用户进入待办或情绪互动故事
+  ↓
+故事根据用户状态变化
+  ↓
+结尾点题并连接现实行动
+  ↓
+用户获得陪伴、舒缓和任务推进
+```
+
+最终形成：
+
+```text
+情绪感知 → 桌宠陪伴 → 故事互动 → 现实行动 → 长期留存
+```
+
+## 项目结构
+
+```text
+desktop-pet-master/
+├── main.py                    # 应用入口、桌宠主窗口、菜单和功能调度
+├── moodpet/
+│   ├── emotion.py             # 情绪状态结构、标签映射和状态构建
+│   ├── emotion_camera.py      # 摄像头采集、人脸检测、OpenVINO 推理
+│   ├── bubble_policy.py       # 主动气泡策略、目标跳转和文案约束
+│   ├── bubble_async.py        # 异步气泡生成任务
+│   ├── deepseek_bubble.py     # DeepSeek 文案生成接入
+│   ├── mini_game_state.py     # 情绪互动故事状态机
+│   ├── mini_game_panel.py     # 小游戏界面
+│   ├── realtime_panel.py      # 实时检测界面
+│   ├── todo_panel.py          # 待办界面
+│   ├── settings_panel.py      # 设置界面
+│   └── ui_state.py            # 首页模块与状态文案
+├── models/                    # 情绪识别模型文件
+├── pet/                       # 桌宠 GIF 资源
+├── assets/                    # README 和界面资源
+├── config/menu_config.json    # 自定义右键菜单
+├── tests/                     # 单元测试与界面逻辑测试
+└── .env.example               # 大模型与图像生成配置示例
+```
+
+## 快速开始
+
+建议使用 Python 3.10+。
 
 ```powershell
-Start-Process "D:\sunshine\Sunshine\SunShine.exe" -WorkingDirectory "D:\sunshine\Sunshine"
-Start-Process "C:\Program Files\Oray\SunLogin\SunloginClient\SunloginClient.exe"
-Start-Process "C:\Program Files\Tailscale\tailscale-ipn.exe"
+cd desktop-pet-master
+python -m venv .venv
+.\.venv\Scripts\activate
+pip install PyQt5 opencv-python numpy openvino pytest
+copy .env.example .env
+python main.py
 ```
 
-打开网页不需要配置脚本文件，直接在上面的配置文件中修改即可
+如果需要启用大模型气泡或图像生成，请在 `.env` 中配置对应密钥：
 
-## 自定义样式
+```env
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+DEEPSEEK_MODEL=deepseek-v4-flash
+ARK_API_KEY=your_ark_api_key_here
+ARK_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+SEEDREAM_MODEL_ID=doubao-seedream-5-0-260128
+```
 
-这是桌面宠物样式文件夹的格式，
+## 测试
 
-在pet文件下的init文件存放的是桌宠初始化的gif文件，这里面的文件名称必须符合下面的规则
+```powershell
+cd desktop-pet-master
+python -m pytest
+```
 
-- move.gif是桌宠被拖拽的样式
-- start.gif是桌宠刚启动的样式
-- stay.gif是桌宠被拖动过后的样式
+## 自定义桌宠与菜单
 
-然后pet文件夹下面的其他gif文件则是桌宠随机播放的文件，这里面的文件不用修改名字。
+桌宠资源位于 `pet/` 目录。初始化动画放在 `pet/init/` 下：
 
-替换时只需要按照上面的规则来替换即可。
+- `start.gif`：启动动画；
+- `move.gif`：拖拽动画；
+- `stay.gif`：静止动画。
 
-![image-20240404140504157](assets/image-20240404140504157.png)
+右键菜单可通过 `config/menu_config.json` 自定义。你可以配置打开网页、执行 PowerShell 脚本或启动本地程序，让桌宠成为轻量桌面入口。
 
+## 创新点总结
 
+1. 把情绪作为新的交互输入。
+2. 用状态感知打破人与游戏之间的第四面墙。
+3. 本地轻量级情绪识别，优先保护隐私。
+4. 桌宠从装饰升级为主动陪伴角色。
+5. 通过待办进入真实学习办公场景。
+6. 通过寓言式故事完成情绪引导。
+7. 用大模型生成个性化气泡与互动内容。
+8. 技术与人文结合，避免强干预和说教。
 
-### 计划加入的功能
+## 致谢
 
-添加移动功能
+本项目基于开源桌宠项目继续扩展，原始项目来自 QinWinter：
 
-接入大语言模型对话
+https://github.com/redqt/DesktopPet_Winter_luoxiaohei
 
-语音对话，语音唤醒
-
-接入agent框架实现自主对话和移动？
-
-与鼠标的互动？
+Mood-Pet 在此基础上加入了情绪识别、状态驱动气泡、待办场景、情绪互动故事和本地隐私优先的产品闭环。
