@@ -1,0 +1,139 @@
+{
+  "story_title": "驿站里的时光信",
+  "subtitle": "一封温柔的信，在午后悄悄旅行",
+  "emotion_summary": "平静的日子，适合慢慢翻开回忆",
+  "theme_subject": "邮局/信件/时间/小伙伴陪伴",
+  "theme_mood": "轻巧、治愈、细腻",
+  "theme_style": "可视化、温馨、慢节奏",
+  "nodes": [
+    {
+      "id": "node_0",
+      "title": "邮局门口",
+      "prompt": "你站在一座旧邮局前，木门半掩，风铃轻响。",
+      "scene_text": "午后的阳光透过梧桐叶洒在台阶上，一只橘色小猫蹲在信箱旁，尾巴轻轻晃动。",
+      "pet_reply": "喵，你来了。今天有一封没有地址的信，也许你可以帮它找到主人。",
+      "step_label": "开场"
+    },
+    {
+      "id": "node_1",
+      "title": "信件的线索",
+      "prompt": "你走进邮局，柜台上有三封泛黄的信，等待你的选择。",
+      "scene_text": "昏黄的灯光下，三封信静静躺着，每封信都系着不同颜色的丝带：蓝色、粉色、绿色。",
+      "pet_reply": "挑一封你最有感觉的吧，信里藏着一段小故事。",
+      "step_label": "事件"
+    },
+    {
+      "id": "node_2",
+      "title": "翻开信纸",
+      "prompt": "你轻轻拆开信，一张手绘地图掉了出来。",
+      "scene_text": "信纸上用铅笔写着：“去老钟楼下的花圃，那里埋着夏天的秘密。”小猫凑过来，用爪子按了按地图的一角。",
+      "pet_reply": "看来是个小冒险，我陪你一起去看看？",
+      "step_label": "选择后"
+    },
+    {
+      "id": "node_3",
+      "title": "花圃里的发现",
+      "prompt": "你们来到钟楼脚下，花圃里开满了雏菊。",
+      "scene_text": "泥土里露出一只铁盒，打开后是一张泛黄的照片和一颗玻璃珠。照片上的人笑得温暖。",
+      "pet_reply": "原来这是某个孩子留给未来的信物，现在它属于你了。",
+      "step_label": "线索展开"
+    },
+    {
+      "id": "node_4",
+      "title": "回信的时刻",
+      "prompt": "你决定在邮局的旧书桌上写一封回信。",
+      "scene_text": "桌上有一支羽毛笔和一瓶墨水，窗外有鸽子掠过。你写下了几句简单的祝福，夹进一片枫叶。",
+      "pet_reply": "你的话真温柔，这封信会传得很远很远。",
+      "step_label": "行动"
+    },
+    {
+      "id": "node_5",
+      "title": "寄出与告别",
+      "prompt": "你将信投进邮筒，听到一声清脆的落底声。",
+      "scene_text": "夕阳把邮筒的影子拉得很长，小猫蹭了蹭你的脚，然后跳上屋檐。远处传来钟楼的整点报时。",
+      "pet_reply": "今天你做了一件很特别的小事。下次再来玩呀，我会在这里。",
+      "step_label": "结尾"
+    }
+  ],
+  "choices": [
+    {
+      "id": "choice_0",
+      "icon": "blue_rib",
+      "title": "蓝色丝带的信",
+      "next_node": 2,
+      "clue_id": "clue_0"
+    },
+    {
+      "id": "choice_1",
+      "icon": "pink_rib",
+      "title": "粉色丝带的信",
+      "next_node": 2,
+      "clue_id": "clue_1"
+    },
+    {
+      "id": "choice_2",
+      "icon": "green_ri",
+      "title": "绿色丝带的信",
+      "next_node": 2,
+      "clue_id": "clue_2"
+    }
+  ],
+  "clues": [
+    {
+      "id": "clue_0",
+      "icon": "blue_rib",
+      "title": "蓝色丝带",
+      "collected": true
+    },
+    {
+      "id": "clue_1",
+      "icon": "pink_rib",
+      "title": "粉色丝带",
+      "collected": true
+    },
+    {
+      "id": "clue_2",
+      "icon": "green_ri",
+      "title": "绿色丝带",
+      "collected": true
+    },
+    {
+      "id": "clue_3",
+      "icon": "map_piec",
+      "title": "手绘地图",
+      "collected": false
+    },
+    {
+      "id": "clue_4",
+      "icon": "photo_ol",
+      "title": "泛黄照片",
+      "collected": false
+    },
+    {
+      "id": "clue_5",
+      "icon": "glass_ma",
+      "title": "玻璃珠",
+      "collected": false
+    }
+  ],
+  "rewards": [
+    {
+      "label": "温柔回忆",
+      "value": 12,
+      "icon": "heart_le"
+    },
+    {
+      "label": "陪伴徽章",
+      "value": 12,
+      "icon": "paw_prin"
+    },
+    {
+      "label": "时光碎片",
+      "value": 12,
+      "icon": "clock_fl"
+    }
+  ],
+  "node_index": 1,
+  "interaction_done": false,
+  "selected_choice_id": ""
+}

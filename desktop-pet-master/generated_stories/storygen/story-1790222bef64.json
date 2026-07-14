@@ -1,0 +1,139 @@
+{
+  "story_title": "远方来信的午后",
+  "subtitle": "和小伙伴一起等待邮差的安静时光",
+  "emotion_summary": "你不在时，故事也轻轻停泊在港湾里",
+  "theme_subject": "邮局与信件",
+  "theme_mood": "安抚",
+  "theme_style": "治愈轻巧细腻",
+  "nodes": [
+    {
+      "id": "0",
+      "title": "寄信人的小憩",
+      "prompt": "你来到森林邮局，柜台上的小灯暖黄，你的小伙伴正在整理信件",
+      "scene_text": "邮局里弥漫着旧纸张和薰衣草的味道，窗外有一片金色的草地。小伙伴抬头对你微笑，尾巴轻轻摇了摇。",
+      "pet_reply": "你回来啦？我帮你收了一封没写地址的信……",
+      "step_label": "开场"
+    },
+    {
+      "id": "1",
+      "title": "一封未署名的信",
+      "prompt": "你看到桌上那封信，封面画着一颗星星，没有收件人",
+      "scene_text": "信纸微微泛着银光，仿佛有风在纸页间流动。小伙伴把信推向你，眼睛亮亮的。",
+      "pet_reply": "拆开看看吧，可能是时间寄来的悄悄话呢。",
+      "step_label": "事件"
+    },
+    {
+      "id": "2",
+      "title": "选择如何拆信",
+      "prompt": "你想怎么打开这封信？",
+      "scene_text": "信纸边缘有细碎的金粉，轻轻一碰就可能飘散。",
+      "pet_reply": "你想怎么拆？用指尖慢慢挑开，还是用羽毛笔划开？",
+      "step_label": "选择后"
+    },
+    {
+      "id": "3",
+      "title": "信中的小画",
+      "prompt": "你拆开信，里面不是文字，而是一幅水彩画",
+      "scene_text": "画上是邮局窗外的草地，还有两个小小身影并肩坐着。你感到一阵暖意。",
+      "pet_reply": "啊，这是我们上次看日落的样子。时间把它画下来了。",
+      "step_label": "线索展开"
+    },
+    {
+      "id": "4",
+      "title": "给时间回信",
+      "prompt": "小伙伴递给你一支羽毛笔和一张空白信纸",
+      "scene_text": "阳光斜斜地照进来，落在纸面，像在等你落笔。",
+      "pet_reply": "你也可以画点什么回给时间呀，哪怕只是一个小点。",
+      "step_label": "行动"
+    },
+    {
+      "id": "5",
+      "title": "信鸽的铃铛",
+      "prompt": "你画完最后一笔，窗外传来清脆的铃铛声",
+      "scene_text": "一只白鸽衔着一颗琥珀色的种子落在窗台上。小伙伴把种子放进你的手心。",
+      "pet_reply": "这是时间的回礼，种下去会开出一朵安静的花。",
+      "step_label": "结尾"
+    }
+  ],
+  "choices": [
+    {
+      "id": "0",
+      "icon": "🖐️",
+      "title": "用指尖轻缓地揭开",
+      "next_node": 2,
+      "clue_id": "clue_letter"
+    },
+    {
+      "id": "1",
+      "icon": "🪶",
+      "title": "用羽毛笔优雅划开",
+      "next_node": 2,
+      "clue_id": "clue_clock"
+    },
+    {
+      "id": "2",
+      "icon": "☕",
+      "title": "先喝口茶再慢慢拆",
+      "next_node": 2,
+      "clue_id": "clue_pet"
+    }
+  ],
+  "clues": [
+    {
+      "id": "0",
+      "icon": "📜",
+      "title": "未署名的信",
+      "collected": true
+    },
+    {
+      "id": "1",
+      "icon": "🎨",
+      "title": "水彩画",
+      "collected": true
+    },
+    {
+      "id": "2",
+      "icon": "🕊️",
+      "title": "信鸽的铃铛声",
+      "collected": true
+    },
+    {
+      "id": "3",
+      "icon": "🌱",
+      "title": "琥珀色种子",
+      "collected": false
+    },
+    {
+      "id": "4",
+      "icon": "🪶",
+      "title": "羽毛笔",
+      "collected": false
+    },
+    {
+      "id": "5",
+      "icon": "🌅",
+      "title": "日落记忆",
+      "collected": false
+    }
+  ],
+  "rewards": [
+    {
+      "label": "安心",
+      "value": 12,
+      "icon": "🕊️"
+    },
+    {
+      "label": "温暖",
+      "value": 12,
+      "icon": "☕"
+    },
+    {
+      "label": "陪伴",
+      "value": 12,
+      "icon": "🤝"
+    }
+  ],
+  "node_index": 1,
+  "interaction_done": false,
+  "selected_choice_id": ""
+}

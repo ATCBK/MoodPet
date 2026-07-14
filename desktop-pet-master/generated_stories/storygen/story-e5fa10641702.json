@@ -1,0 +1,139 @@
+{
+  "story_title": "邮局小星与慢信件",
+  "subtitle": "和猫咪邮差一起，把心事寄给远方",
+  "emotion_summary": "情绪未启用，但愿你此刻轻松自在",
+  "theme_subject": "邮局",
+  "theme_mood": "治愈",
+  "theme_style": "轻巧细腻",
+  "nodes": [
+    {
+      "id": "node_0",
+      "title": "晨光邮局",
+      "prompt": "你推开邮局的木门，铃铛轻响，阳光斜照在旧木地板上。",
+      "scene_text": "暖黄色的灯光下，一只戴着小邮差帽的猫咪正趴在柜台打盹，尾巴尖轻轻抖动。",
+      "pet_reply": "喵……早安呀，等你好久了。",
+      "step_label": "开场"
+    },
+    {
+      "id": "node_1",
+      "title": "信架上的邀请",
+      "prompt": "猫咪邮差伸个懒腰，跳下柜台，用爪子推来三封信。",
+      "scene_text": "信纸微微泛黄，上面用蜡笔写着小小的字：一封是蒲公英图案，一封是星星图案，一封是云朵图案。",
+      "pet_reply": "选一封你想寄出的信吧，我们一起去送。",
+      "step_label": "选择事件"
+    },
+    {
+      "id": "node_2",
+      "title": "寄信旅程",
+      "prompt": "你拿起其中一封信，猫咪邮差开心地甩了甩尾巴。",
+      "scene_text": "你们穿过小镇的鹅卵石路，风轻轻吹动信纸，路边的铃兰在摇晃。",
+      "pet_reply": "这封信会到谁那里呢？慢慢走，不着急。",
+      "step_label": "选择后"
+    },
+    {
+      "id": "node_3",
+      "title": "秘密信箱",
+      "prompt": "你们来到一棵老橡树下，树洞里藏着一个雕花信箱。",
+      "scene_text": "信箱上缠着绿色藤蔓，打开时里面躺着一片羽毛、一颗玻璃珠、一张小纸条。",
+      "pet_reply": "哇，是上一只小熊邮差留下的信物呢。",
+      "step_label": "线索展开"
+    },
+    {
+      "id": "node_4",
+      "title": "轻轻投递",
+      "prompt": "猫咪邮差教你用爪印代替邮戳，轻轻盖在信封上。",
+      "scene_text": "你小心翼翼地把信放进信箱，听到里面传来轻柔的回响，像一声谢谢。",
+      "pet_reply": "你做到了。每个字都会被好好收着。",
+      "step_label": "行动"
+    },
+    {
+      "id": "node_5",
+      "title": "回信与晚安",
+      "prompt": "夕阳染红天空，你发现信箱里多了一封回信。",
+      "scene_text": "回信上画着你和猫咪邮差手拉手，旁边写着：谢谢你，明天见。",
+      "pet_reply": "下次再来呀，我们一起等信。晚安，好梦。",
+      "step_label": "结尾"
+    }
+  ],
+  "choices": [
+    {
+      "id": "choice_0",
+      "icon": "🌼",
+      "title": "蒲公英信（寄给想念的人）",
+      "next_node": 2,
+      "clue_id": "clue_0"
+    },
+    {
+      "id": "choice_1",
+      "icon": "⭐",
+      "title": "星星信（寄给明天的自己）",
+      "next_node": 2,
+      "clue_id": "clue_1"
+    },
+    {
+      "id": "choice_2",
+      "icon": "☁️",
+      "title": "云朵信（寄给一个秘密）",
+      "next_node": 2,
+      "clue_id": "clue_2"
+    }
+  ],
+  "clues": [
+    {
+      "id": "clue_0",
+      "icon": "🌼",
+      "title": "蒲公英信纸",
+      "collected": true
+    },
+    {
+      "id": "clue_1",
+      "icon": "⭐",
+      "title": "星星信纸",
+      "collected": true
+    },
+    {
+      "id": "clue_2",
+      "icon": "☁️",
+      "title": "云朵信纸",
+      "collected": true
+    },
+    {
+      "id": "clue_3",
+      "icon": "🪶",
+      "title": "羽毛笔",
+      "collected": false
+    },
+    {
+      "id": "clue_4",
+      "icon": "🔮",
+      "title": "玻璃珠",
+      "collected": false
+    },
+    {
+      "id": "clue_5",
+      "icon": "📜",
+      "title": "小纸条",
+      "collected": false
+    }
+  ],
+  "rewards": [
+    {
+      "label": "宁静积分",
+      "value": 12,
+      "icon": "🧘"
+    },
+    {
+      "label": "安慰星星",
+      "value": 8,
+      "icon": "✨"
+    },
+    {
+      "label": "爪子印章",
+      "value": 5,
+      "icon": "🐾"
+    }
+  ],
+  "node_index": 1,
+  "interaction_done": false,
+  "selected_choice_id": ""
+}

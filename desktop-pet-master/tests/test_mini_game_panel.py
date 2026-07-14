@@ -2,6 +2,7 @@ import os
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
@@ -50,6 +51,32 @@ class MiniGamePanelTest(unittest.TestCase):
         self.assertGreater(window.task_panel.y(), 300)
         self.assertTrue(window.restart_button.isVisible())
         self.assertTrue(window.back_button.isVisible())
+
+        window.close()
+        app.processEvents()
+
+    def test_story_header_keeps_long_text_to_single_lines(self):
+        app = QApplication.instance() or QApplication(sys.argv)
+        window = MiniGamePanelWindow(
+            Path(__file__).resolve().parents[1],
+            generate_story=False,
+            preload_story_assets=False,
+        )
+        window.state = replace(
+            window.state,
+            story_title="邮局小星马慢信件和被风吹乱的超长故事标题，顺着云朵一路写到黄昏后的灯塔门口",
+            subtitle="一个很长很长的副标题，用来确认头部区域不会把流程进度挤到一起",
+        )
+        window.refresh()
+        window.show()
+        app.processEvents()
+
+        self.assertFalse(window.story_title.wordWrap())
+        self.assertFalse(window.subtitle.wordWrap())
+        self.assertFalse(window.progress_nodes.wordWrap())
+        self.assertIn("…", window.story_title.text())
+        self.assertLess(window.story_title.geometry().bottom(), window.subtitle.geometry().top())
+        self.assertLess(window.subtitle.geometry().bottom(), window.progress_label.geometry().top())
 
         window.close()
         app.processEvents()

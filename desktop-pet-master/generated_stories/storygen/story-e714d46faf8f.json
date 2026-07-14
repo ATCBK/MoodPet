@@ -1,0 +1,139 @@
+{
+  "story_title": "时光邮局的静音信",
+  "subtitle": "一封未写完的信，带你走进温柔的午后",
+  "emotion_summary": "平稳的午后，风铃轻响，适合一封慢信",
+  "theme_subject": "邮局",
+  "theme_mood": "恬静",
+  "theme_style": "治愈轻巧",
+  "nodes": [
+    {
+      "id": "node_1",
+      "title": "邮局的门",
+      "prompt": "你推开一扇老旧的木门，风铃叮当",
+      "scene_text": "阳光斜斜洒进邮局，空气中浮着粗纸和干花的气味。柜台后，一只毛茸茸的宠物伙伴正用爪子整理信件。它抬起头，尾巴轻轻摇了摇。",
+      "pet_reply": "“你来啦。今天有一封寄给你的信，但……还没写完。”",
+      "step_label": "开场"
+    },
+    {
+      "id": "node_2",
+      "title": "未完成的信",
+      "prompt": "你看到一封只写了开头几个字的信",
+      "scene_text": "信纸上只有一行字：“今天天气很好，我想和你分享……”后面是空白的。宠物伙伴用鼻子把一支羽毛笔推到你面前。",
+      "pet_reply": "“你来写完它吧。可以写任何你想到的东西。”",
+      "step_label": "事件"
+    },
+    {
+      "id": "node_3",
+      "title": "选择你的笔迹",
+      "prompt": "你拿起羽毛笔，想起窗外的云",
+      "scene_text": "笔尖悬在纸面上，墨水滴落，慢慢晕开。宠物伙伴轻轻趴在你脚边，尾巴扫过地板。",
+      "pet_reply": "“不急，慢慢写。”",
+      "step_label": "选择后"
+    },
+    {
+      "id": "node_4",
+      "title": "线索展开",
+      "prompt": "你发现信纸背面有隐藏的图案",
+      "scene_text": "当你翻转信纸，看到蜡封的痕迹——是一枚古老的邮戳，印着一只小动物和一朵花。宠物伙伴凑过来，舔了舔你的手指。",
+      "pet_reply": "“这是时间邮局特有的邮戳，只有安静的心才能看见。”",
+      "step_label": "线索展开"
+    },
+    {
+      "id": "node_5",
+      "title": "行动",
+      "prompt": "你决定把信放进那个褪色的邮筒",
+      "scene_text": "你走到邮局角落，那里立着一个绿色邮筒，上面爬满青苔。你轻轻把信投进去，听到一声温柔的落底声。",
+      "pet_reply": "“信会抵达它该去的地方。我们等等看。”",
+      "step_label": "行动"
+    },
+    {
+      "id": "node_6",
+      "title": "回信",
+      "prompt": "邮筒轻轻抖动，一封回信滑出",
+      "scene_text": "一封带着淡淡花香的信封落在你手心。打开，里面是一幅简单的画：一只小动物和一朵花在阳光下。宠物伙伴蹭了蹭你的腿。",
+      "pet_reply": "“这是时光送给你的礼物。你看，一切都很安稳。”",
+      "step_label": "结尾"
+    }
+  ],
+  "choices": [
+    {
+      "id": "choice_1",
+      "icon": "feather",
+      "title": "写一句关于云的话",
+      "next_node": 2,
+      "clue_id": "clue_1"
+    },
+    {
+      "id": "choice_2",
+      "icon": "leaf",
+      "title": "画一朵小花代替文字",
+      "next_node": 2,
+      "clue_id": "clue_2"
+    },
+    {
+      "id": "choice_3",
+      "icon": "star",
+      "title": "留白，只折一个纸船",
+      "next_node": 2,
+      "clue_id": "clue_3"
+    }
+  ],
+  "clues": [
+    {
+      "id": "clue_1",
+      "icon": "cloud",
+      "title": "云的形状像一只猫",
+      "collected": true
+    },
+    {
+      "id": "clue_2",
+      "icon": "flower",
+      "title": "花香来自窗外老槐树",
+      "collected": true
+    },
+    {
+      "id": "clue_3",
+      "icon": "boat",
+      "title": "纸船折痕里藏着一个字",
+      "collected": true
+    },
+    {
+      "id": "clue_4",
+      "icon": "clock",
+      "title": "邮局时钟比平时慢十分钟",
+      "collected": false
+    },
+    {
+      "id": "clue_5",
+      "icon": "envelope",
+      "title": "信封内侧有淡淡铅笔字",
+      "collected": false
+    },
+    {
+      "id": "clue_6",
+      "icon": "paw",
+      "title": "宠物伙伴的爪印在邮戳里",
+      "collected": false
+    }
+  ],
+  "rewards": [
+    {
+      "label": "宁静徽章",
+      "value": 12,
+      "icon": "shield"
+    },
+    {
+      "label": "羽毛笔",
+      "value": 8,
+      "icon": "write"
+    },
+    {
+      "label": "花香信封",
+      "value": 10,
+      "icon": "letter"
+    }
+  ],
+  "node_index": 1,
+  "interaction_done": false,
+  "selected_choice_id": ""
+}

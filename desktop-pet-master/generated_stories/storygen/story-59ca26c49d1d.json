@@ -1,0 +1,139 @@
+{
+  "story_title": "雾里的暖邮局",
+  "subtitle": "先把情绪放稳，再慢慢往前走",
+  "emotion_summary": "当前更需要安抚和小成功感。",
+  "theme_subject": "一封会发热的信",
+  "theme_mood": "安静、温柔、慢慢回暖",
+  "theme_style": "治愈系 / 低压 / 轻剧情",
+  "nodes": [
+    {
+      "id": "opening",
+      "title": "雾里的暖邮局的第一盏灯",
+      "prompt": "低落 的气息像窗边的雾，MoodPet 把一盏小灯放到桌边，让你先不用急着回答任何问题。",
+      "scene_text": "邮局里的灯光慢慢亮起来，空气里有纸张和木头的味道，像是在提醒你先停一停。",
+      "pet_reply": "先别赶路，我们把心情放稳，再往前看。",
+      "step_label": "开场"
+    },
+    {
+      "id": "event",
+      "title": "要先碰哪一个线索",
+      "prompt": "MoodPet 发现桌上摆着三样东西：一封信、一只旧钟，还有一段像风一样轻的提示，正等你选一个最想靠近的。",
+      "scene_text": "窗外的雾还没有散完，但桌上的小物件都在安静发亮，像是在等你做一个不会出错的小决定。",
+      "pet_reply": "先选一个最轻松的方向就好，故事会跟着你慢慢展开。",
+      "step_label": "事件"
+    },
+    {
+      "id": "choice_result",
+      "title": "被点亮的回应",
+      "prompt": "你选中的方向让邮局里的某个角落轻轻亮了起来，像是在说：这一步走得很好。",
+      "scene_text": "MoodPet 顺着你选的方向点了点头，原本安静的场景开始出现细小的回声和温暖的光。",
+      "pet_reply": "很好，我们已经找到第一点安心感了。",
+      "step_label": "选择"
+    },
+    {
+      "id": "clue_trace",
+      "title": "线索开始连起来",
+      "prompt": "信件、钟声和那一缕提示慢慢连在一起，故事不再只是等待，而是在一点点变得清楚。",
+      "scene_text": "桌面上的纸张被轻轻摊开，原本模糊的地方逐渐有了形状，像是在替你把心里的结打开。",
+      "pet_reply": "不用着急，线索已经开始自己说话了。",
+      "step_label": "线索"
+    },
+    {
+      "id": "action",
+      "title": "把线索送到该去的地方",
+      "prompt": "现在只差最后一步，你把刚刚收集到的线索拼好，准备把它送去最合适的位置，让事情往前走。",
+      "scene_text": "邮局深处的灯泡亮得更柔和了，MoodPet 跟在你旁边，像是在确认这次不会再迷路。",
+      "pet_reply": "我们已经走到最接近答案的地方了。",
+      "step_label": "行动"
+    },
+    {
+      "id": "ending",
+      "title": "雾散之后的小小落点",
+      "prompt": "当最后一封信被放回正确的位置，空气里那点沉着的压力也跟着散开，留下更轻一点的呼吸。",
+      "scene_text": "夜色与暖灯一起落下来，邮局重新安静下来，但这一次安静里有了被照顾好的感觉。",
+      "pet_reply": "做得很好，情绪已经被轻轻托住了。",
+      "step_label": "结尾"
+    }
+  ],
+  "choices": [
+    {
+      "id": "choice_letter",
+      "icon": "✉",
+      "title": "先看那封信",
+      "next_node": 2,
+      "clue_id": "clue_letter"
+    },
+    {
+      "id": "choice_clock",
+      "icon": "⏰",
+      "title": "跟着钟声慢慢走",
+      "next_node": 2,
+      "clue_id": "clue_clock"
+    },
+    {
+      "id": "choice_pet",
+      "icon": "🐾",
+      "title": "让 MoodPet 带路",
+      "next_node": 2,
+      "clue_id": "clue_pet"
+    }
+  ],
+  "clues": [
+    {
+      "id": "stamp",
+      "icon": "✦",
+      "title": "蓝色邮戳",
+      "collected": true
+    },
+    {
+      "id": "clock",
+      "icon": "◔",
+      "title": "慢半拍的钟声",
+      "collected": true
+    },
+    {
+      "id": "address",
+      "icon": "⌂",
+      "title": "未写完的地址",
+      "collected": true
+    },
+    {
+      "id": "clue_letter",
+      "icon": "✉",
+      "title": "信封边缘的暖痕",
+      "collected": false
+    },
+    {
+      "id": "clue_clock",
+      "icon": "⏰",
+      "title": "钟面的轻微停顿",
+      "collected": false
+    },
+    {
+      "id": "clue_pet",
+      "icon": "🐾",
+      "title": "MoodPet 的带路提示",
+      "collected": false
+    }
+  ],
+  "rewards": [
+    {
+      "label": "安心值",
+      "value": 12,
+      "icon": "❤"
+    },
+    {
+      "label": "陪伴值",
+      "value": 8,
+      "icon": "✦"
+    },
+    {
+      "label": "微光值",
+      "value": 5,
+      "icon": "◎"
+    }
+  ],
+  "node_index": 1,
+  "interaction_done": false,
+  "selected_choice_id": ""
+}

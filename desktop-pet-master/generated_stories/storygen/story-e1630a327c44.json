@@ -1,0 +1,139 @@
+{
+  "story_title": "时光邮局的轻声问候",
+  "subtitle": "一封来自慢时光的信，陪你散步",
+  "emotion_summary": "平稳如微风，正好一起走走停停",
+  "theme_subject": "邮局",
+  "theme_mood": "治愈、轻巧、细腻",
+  "theme_style": "可视化",
+  "nodes": [
+    {
+      "id": "node_1",
+      "title": "邮局的门铃",
+      "prompt": "你推开门，铃铛叮咚，空气里有纸和阳光的味道。",
+      "scene_text": "小邮局里，木架上摆满旧信封，窗户透进暖光。",
+      "pet_reply": "嘿，你来了，今天风很轻，我们慢慢逛。",
+      "step_label": "开场"
+    },
+    {
+      "id": "node_2",
+      "title": "未写完的信",
+      "prompt": "柜台边有一封未写完的信，墨水瓶倒着，旁边放着羽毛笔。",
+      "scene_text": "信纸上字迹整洁，最后一行写着‘亲爱的…’然后空着。",
+      "pet_reply": "这封信看起来需要一点灵感，你要帮忙写下去吗？",
+      "step_label": "事件"
+    },
+    {
+      "id": "node_3",
+      "title": "笔尖的停留",
+      "prompt": "你拿起羽毛笔，墨汁在笔尖凝成小圆珠。",
+      "scene_text": "纸微微泛黄，墨香淡淡飘起。",
+      "pet_reply": "慢慢来，你可以写任何你想说的，哪怕只是一个词。",
+      "step_label": "选择后"
+    },
+    {
+      "id": "node_4",
+      "title": "藏在信封里的线索",
+      "prompt": "你发现信封背面有一个模糊的邮戳，上面画着一片树叶。",
+      "scene_text": "邮戳的图案像是枫叶，边缘还有一圈细小的字。",
+      "pet_reply": "这个邮戳来自‘慢时光森林’，我听说那里有一棵会说话的老树。",
+      "step_label": "线索展开"
+    },
+    {
+      "id": "node_5",
+      "title": "贴邮票的小动作",
+      "prompt": "你从抽屉里挑了一张邮票，是淡蓝色的天空和一只小鸟。",
+      "scene_text": "邮票的边缘是波浪形的，贴在信封右上角刚好合适。",
+      "pet_reply": "贴好邮票，这封信就要开始旅行了。",
+      "step_label": "行动"
+    },
+    {
+      "id": "node_6",
+      "title": "信投入邮筒",
+      "prompt": "你把信投入门口的绿色邮筒，听到‘咚’的一声轻响。",
+      "scene_text": "夕阳把邮筒的影子拉得长长的，远处有鸟儿飞过。",
+      "pet_reply": "信已经上路了，就像今天的时光，轻轻流过。",
+      "step_label": "结尾"
+    }
+  ],
+  "choices": [
+    {
+      "id": "choice_1",
+      "icon": "✉️",
+      "title": "写一句‘今天天气很好’",
+      "next_node": 2,
+      "clue_id": "clue_1"
+    },
+    {
+      "id": "choice_2",
+      "icon": "🍃",
+      "title": "画一片小树叶在信纸角落",
+      "next_node": 2,
+      "clue_id": "clue_2"
+    },
+    {
+      "id": "choice_3",
+      "icon": "🌟",
+      "title": "只写一个‘安’字",
+      "next_node": 2,
+      "clue_id": "clue_3"
+    }
+  ],
+  "clues": [
+    {
+      "id": "clue_1",
+      "icon": "☀️",
+      "title": "阳光的字迹",
+      "collected": true
+    },
+    {
+      "id": "clue_2",
+      "icon": "🌿",
+      "title": "树叶的印记",
+      "collected": true
+    },
+    {
+      "id": "clue_3",
+      "icon": "🕊️",
+      "title": "安宁的符号",
+      "collected": true
+    },
+    {
+      "id": "clue_4",
+      "icon": "🔍",
+      "title": "邮戳的秘密",
+      "collected": false
+    },
+    {
+      "id": "clue_5",
+      "icon": "🕰️",
+      "title": "慢时光的碎片",
+      "collected": false
+    },
+    {
+      "id": "clue_6",
+      "icon": "💌",
+      "title": "未寄出的回音",
+      "collected": false
+    }
+  ],
+  "rewards": [
+    {
+      "label": "完成一封信",
+      "value": 12,
+      "icon": "📮"
+    },
+    {
+      "label": "收集阳光碎片",
+      "value": 8,
+      "icon": "✨"
+    },
+    {
+      "label": "获得时光伙伴徽章",
+      "value": 15,
+      "icon": "🏅"
+    }
+  ],
+  "node_index": 1,
+  "interaction_done": false,
+  "selected_choice_id": ""
+}

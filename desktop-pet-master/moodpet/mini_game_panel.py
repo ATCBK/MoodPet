@@ -240,6 +240,18 @@ def label(parent: QWidget, text: str, geometry: Tuple[int, int, int, int], size:
     return item
 
 
+def single_line_label(parent: QWidget, text: str, geometry: Tuple[int, int, int, int], size: int = 12, weight: int = 700) -> QLabel:
+    item = label(parent, text, geometry, size, weight)
+    item.setWordWrap(False)
+    return item
+
+
+def set_elided_label_text(item: QLabel, text: str) -> None:
+    available_width = max(0, item.width() - 4)
+    item.setText(item.fontMetrics().elidedText(text, Qt.ElideRight, available_width))
+    item.setToolTip(text)
+
+
 class PixelButton(QPushButton):
     def __init__(self, text: str, parent: QWidget, color: str = PANEL, text_color: str = INK) -> None:
         super().__init__(text, parent)
@@ -561,10 +573,10 @@ class MiniGamePanelWindow(QWidget):
             "border-right: 4px solid #183c76; border-bottom: 4px solid #183c76;"
             "border-radius: 8px; font: 900 24pt 'Microsoft YaHei';"
         )
-        self.story_title = label(self.header_card, "", (138, 14, 640, 34), 14, 900)
-        self.subtitle = label(self.header_card, "", (140, 50, 560, 28), 10, 700)
-        self.progress_label = label(self.header_card, "", (140, 84, 100, 24), 10, 800)
-        self.progress_nodes = label(self.header_card, "① 开场 ━ ② 事件 ━ ③ 选择 ━ ④ 线索 ━ ⑤ 行动 ━ ⑥ 结尾", (250, 82, 520, 28), 10, 900)
+        self.story_title = single_line_label(self.header_card, "", (138, 16, 674, 30), 14, 900)
+        self.subtitle = single_line_label(self.header_card, "", (140, 52, 672, 24), 10, 700)
+        self.progress_label = single_line_label(self.header_card, "", (140, 92, 88, 24), 10, 800)
+        self.progress_nodes = single_line_label(self.header_card, "① 开场 ━ ② 事件 ━ ③ 选择 ━ ④ 线索 ━ ⑤ 行动 ━ ⑥ 结尾", (236, 91, 592, 26), 10, 900)
         self.continue_button = PixelButton("继续故事", self.header_card, BLUE, "white")
         self.continue_button.setGeometry(842, 28, 156, 48)
         apply_button_icon(self.continue_button, "story_choice", 24)
@@ -895,11 +907,11 @@ class MiniGamePanelWindow(QWidget):
             self._render_story_loading()
             return
         node = current_node(self.state)
-        self.story_title.setText(f"本次故事：{self.state.story_title}")
+        set_elided_label_text(self.story_title, f"本次故事：{self.state.story_title}")
         subtitle_text = self.state.subtitle
         if self.state.emotion_summary:
             subtitle_text = f"{subtitle_text} · {self.state.emotion_summary}"
-        self.subtitle.setText(subtitle_text)
+        set_elided_label_text(self.subtitle, subtitle_text)
         self.progress_label.setText(progress_text(self.state))
         self.scene.set_caption(node.scene_text)
         self._prefetch_node_image()
@@ -960,8 +972,8 @@ class MiniGamePanelWindow(QWidget):
             self.restart_button.setEnabled(True)
 
     def _render_story_loading(self) -> None:
-        self.story_title.setText("正在生成剧情")
-        self.subtitle.setText(f"{self.emotion_state.label_zh} · {self.emotion_state.message}")
+        set_elided_label_text(self.story_title, "正在生成剧情")
+        set_elided_label_text(self.subtitle, f"{self.emotion_state.label_zh} · {self.emotion_state.message}")
         self.progress_label.setText("剧情准备中")
         self.scene.set_caption("正在根据当前情绪生成更适合你的故事...")
         self.scene.set_image_path(None)
